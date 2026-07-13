@@ -20,6 +20,8 @@ namespace Spellblade
         [Header("Identity")]
         public string displayName = "Spell";
         public Color themeColor = Color.white;
+        [Tooltip("Element for the counter-wheel: enemies resist their own element, break to its counter.")]
+        public ElementType element = ElementType.Umbra;
 
         [Header("Costs")]
         public float manaCost = 20f;

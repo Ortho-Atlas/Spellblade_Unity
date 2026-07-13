@@ -111,17 +111,17 @@ namespace Spellblade
             CreateWall(arena, wallMat, new Vector3(half, wallHeight / 2f, 0), new Vector3(1f, wallHeight, arenaSize + 1f));
             CreateWall(arena, wallMat, new Vector3(-half, wallHeight / 2f, 0), new Vector3(1f, wallHeight, arenaSize + 1f));
 
-            // Interior pillars + wall chunks — NavMesh obstacles to path around
-            // and bodies to block skillshots.
+            // Interior pillars — pushed to the arena edges so the corridor between
+            // the spawn and the cultist arc has CLEAR firing lanes (Ryan's call).
+            // They still give the NavMesh something to path around at the flanks.
             var pillarMat = SpellbladeFx.MakeLit(new Color(0.15f, 0.15f, 0.17f), 0.25f);
             var obstacles = new (Vector3 pos, Vector3 scale)[]
             {
-                (new Vector3(-6f, 2f, -4f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3( 6f, 2f, -3f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3(-5f, 2f,  6f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3( 7f, 2f,  5f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3( 0f, 1.5f, 8f), new Vector3(6f, 3f, 1f)),   // broken wall segment
-                (new Vector3(-9f, 1.5f, 0f), new Vector3(1f, 3f, 5f)),   // broken wall segment
+                (new Vector3(-11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
+                (new Vector3( 11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
+                (new Vector3(-11.5f, 2f, 6f), new Vector3(1.4f, 4f, 1.4f)),
+                (new Vector3( 11.5f, 2f, 6f), new Vector3(1.4f, 4f, 1.4f)),
+                (new Vector3( 0f, 1.5f, -11.5f), new Vector3(6f, 3f, 1f)), // broken wall, south of spawn
             };
             foreach (var (pos, scale) in obstacles)
                 CreateWall(arena, pillarMat, pos, scale, "Pillar");
@@ -213,6 +213,7 @@ namespace Spellblade
                 Destroy(holder);
 
                 controller.BindAnimator(rig.GetComponent<Animator>());
+                WizardGear.Dress(player, rig.transform); // hat, staff, charcoal robes
                 Debug.Log("[Spellblade] Starter Assets rig attached — walk/run animations live.");
             }
             else
@@ -235,6 +236,7 @@ namespace Spellblade
                 core.GetComponent<Renderer>().material = SpellbladeFx.MakeEmissive(
                     new Color(0.4f, 0.15f, 0.6f), new Color(0.55f, 0.15f, 1f), 2.5f);
 
+                WizardGear.Dress(player, null); // hat + staff on static anchors
                 Debug.Log("[Spellblade] No Starter Assets rig found — using capsule fallback.");
             }
         }
@@ -243,13 +245,14 @@ namespace Spellblade
 
         private void SpawnDummies()
         {
-            // Arc of dummies across the arena's north half, facing the player spawn.
+            // Arc of dummies across the arena's north half, cycling through the
+            // four elements so every attunement is represented (5th wraps to Umbra).
             for (int i = 0; i < dummyCount; i++)
             {
                 float t = dummyCount > 1 ? i / (float)(dummyCount - 1) : 0.5f;
                 float angle = Mathf.Lerp(-55f, 55f, t) * Mathf.Deg2Rad;
                 var pos = new Vector3(Mathf.Sin(angle) * 9f, 0f, 4f + Mathf.Cos(angle) * 5f);
-                Dummy.Spawn(pos, dummyHealth, dummyRespawnDelay);
+                Dummy.Spawn(pos, dummyHealth, dummyRespawnDelay, (ElementType)(i % 4));
             }
         }
 
@@ -334,6 +337,7 @@ namespace Spellblade
         {
             // UMBRA — Umbral Lance: fast + snappy (built first, tuned to feel good).
             var umbralLance = SpellSO.Create("Umbral Lance", new Color(0.55f, 0.20f, 0.95f), AimType.LineSkillshot);
+            umbralLance.element = ElementType.Umbra;
             umbralLance.manaCost = 18f;
             umbralLance.cooldown = 2.5f;
             umbralLance.damage = 32f;
@@ -343,6 +347,7 @@ namespace Spellblade
 
             // FROST — Rimeblast: short-range, slows.
             var rimeblast = SpellSO.Create("Rimeblast", new Color(0.30f, 0.85f, 0.95f), AimType.LineSkillshot);
+            rimeblast.element = ElementType.Frost;
             rimeblast.manaCost = 22f;
             rimeblast.cooldown = 5f;
             rimeblast.damage = 24f;
@@ -354,6 +359,7 @@ namespace Spellblade
 
             // STORM — Tempest Bolt: very fast, long, thin.
             var tempestBolt = SpellSO.Create("Tempest Bolt", new Color(0.75f, 0.85f, 1.00f), AimType.LineSkillshot);
+            tempestBolt.element = ElementType.Storm;
             tempestBolt.manaCost = 20f;
             tempestBolt.cooldown = 3.5f;
             tempestBolt.damage = 26f;
@@ -363,6 +369,7 @@ namespace Spellblade
 
             // BLOOD — Hemorrhage: cursor-point burst + damage over time.
             var hemorrhage = SpellSO.Create("Hemorrhage", new Color(0.85f, 0.10f, 0.20f), AimType.PointAoE);
+            hemorrhage.element = ElementType.Blood;
             hemorrhage.manaCost = 30f;
             hemorrhage.cooldown = 7f;
             hemorrhage.damage = 20f;

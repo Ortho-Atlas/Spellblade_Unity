@@ -22,6 +22,8 @@ namespace Spellblade
         private Material _shardMat;
         private Light _glow;
         private ParticleSystem _wisps;
+        private Material _staffOrbMat;   // wizard staff orb — retints with the shard
+        private Light _staffOrbLight;
         private Color _currentColor;
         private float _angle;
 
@@ -46,6 +48,16 @@ namespace Spellblade
             _glow.intensity = 2.6f;
 
             _wisps = SpellbladeParticles.AuraWisps(_shard, color);
+
+            // Find the wizard staff orb (created by WizardGear) so it retints too.
+            foreach (var r in GetComponentsInChildren<Renderer>())
+            {
+                if (r.gameObject.name != "Staff Orb") continue;
+                _staffOrbMat = r.material;
+                _staffOrbLight = r.GetComponent<Light>();
+                break;
+            }
+
             ApplyColor(color);
         }
 
@@ -79,6 +91,13 @@ namespace Spellblade
 
             var main = _wisps.main;
             main.startColor = color;
+
+            if (_staffOrbMat != null)
+            {
+                _staffOrbMat.SetColor("_BaseColor", color * 0.5f);
+                _staffOrbMat.SetColor("_EmissionColor", color * 3f);
+            }
+            if (_staffOrbLight != null) _staffOrbLight.color = color;
         }
     }
 }

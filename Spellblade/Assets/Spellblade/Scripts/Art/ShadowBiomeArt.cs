@@ -72,10 +72,11 @@ namespace Spellblade
             Block(arch, mat, new Vector3(1.6f, 1.9f, 0), new Vector3(0.9f, 3.8f, 0.9f));
             Block(arch, mat, new Vector3(0f, 3.9f, 0), new Vector3(4.4f, 0.7f, 0.9f));
 
-            // Collapsed arch, east side — one pillar snapped, lintel fallen against it.
+            // Collapsed arch, southeast corner — one pillar snapped, lintel fallen.
+            // (Moved out of the firing lanes 2026-07-12.)
             var broken = new GameObject("Collapsed Arch").transform;
             broken.SetParent(root);
-            broken.position = new Vector3(9f, 0f, 8f);
+            broken.position = new Vector3(11.5f, 0f, -9.5f);
             Block(broken, mat, new Vector3(-1.6f, 1.9f, 0), new Vector3(0.9f, 3.8f, 0.9f));
             Block(broken, mat, new Vector3(1.6f, 0.7f, 0), new Vector3(0.9f, 1.4f, 0.9f)); // stump
             var fallen = Block(broken, mat, new Vector3(0.6f, 2.4f, 0.1f), new Vector3(4.0f, 0.65f, 0.85f));
@@ -109,11 +110,12 @@ namespace Spellblade
         private static void BuildStandingStones(Transform root, Material stoneMat)
         {
             var rng = new System.Random(7); // deterministic layout every run
+            // All along the walls — out of the firing lanes.
             Vector3[] spots =
             {
-                new(-3.5f, 0f, 10f),
-                new(10f, 0f, -1f),
-                new(-10.5f, 0f, 4f),
+                new(-13f, 0f, 2.5f),
+                new(13f, 0f, -3.5f),
+                new(-12.5f, 0f, -9f),
             };
 
             foreach (var spot in spots)

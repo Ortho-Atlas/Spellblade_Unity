@@ -67,9 +67,15 @@ namespace Spellblade
                 var health = hit.collider.GetComponentInParent<Health>();
                 if (health != null && !health.IsDead)
                 {
-                    health.TakeDamage(_spell.damage);
-                    health.ApplyDot(_spell.dotDamagePerSecond, _spell.dotDuration);
+                    // Counter-wheel: scale damage by the target's elemental attunement.
+                    var affinity = hit.collider.GetComponentInParent<ElementalAffinity>();
+                    float mod = affinity != null ? affinity.ModifierFor(_spell.element) : 1f;
+
+                    float damage = _spell.damage * mod;
+                    health.TakeDamage(damage);
+                    health.ApplyDot(_spell.dotDamagePerSecond * mod, _spell.dotDuration);
                     health.ApplySlow(_spell.slowPercent, _spell.slowDuration);
+                    DamageNumber.Spawn(hit.point + Vector3.up * 1.1f, damage, mod);
                     Impact(hit.point);
                     return;
                 }
