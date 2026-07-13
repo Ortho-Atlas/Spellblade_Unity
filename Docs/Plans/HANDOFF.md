@@ -22,3 +22,26 @@
 **Interim quirk (per plan, accepted):** W still swaps to Frost discipline while moving — `SpellCaster` Q/W/E/R handler is untouched by design; Plan 02 removes it. Harmless: no errors, movement and swap both fire.
 
 ---
+
+## Plan 03 — World Map + Game Flow (contracts owner) · `phase2/map` · 2026-07-12
+
+**Contracts are LIVE — code against these, do not stub them anymore:**
+- `Scripts/Core/GameSession.cs` — `CurrentNode`, `ReportArenaResult(bool)` exactly per overview, plus query helpers other plans may use: `IsRegionUnlocked(regionId)`, `IsNodeCleared(nodeId)`, `IsBossUnlocked(regionId)`, `BossUnlockClears` (=3). Hub-and-spokes unlock rules live inside `ReportArenaResult` (boss clear → regions whose `unlockedBy` contains that region). `CurrentNode` is nulled on every report so playground mode can't be polluted by a stale node.
+- `Scripts/Core/ArenaNodeDef.cs` — exact contract fields + `ObjectiveType` enum. Node MAP POSITIONS deliberately live in `RegionDefs.NodePlacement`, NOT on ArenaNodeDef — the contract stays pure gameplay data.
+- `Scripts/Meta/SaveSystem.cs` — exact `SaveData` schema, JsonUtility at `persistentDataPath/spellblade_save.json`, lazy load, fresh save = `unlockedRegions:["shadow"]`, corrupt file → warn + fresh.
+
+**Also shipped:**
+- `Scripts/Map/RegionDefs.cs` — all 8 regions (placeholder names, ids stable), shadow 5 nodes / frost 4 per plan, hand-placed normalized positions.
+- `Scripts/Map/WorldMapBootstrap.cs` + `Scripts/Map/MapNodeUI.cs` — runtime-generated 2.5D map: ortho camera + parchment-gradient world quad + soft-circle region blobs (world layer), screen-space-camera canvas (labels, beacons, tooltip, currency footer, Sanctum placeholder) so URP bloom hits the beacons (map volume threshold 0.6). Flourishes on a mouse-parallax root: fog over Shadow, cyan glints over Frost (when unlocked), mist over locked regions ("The mists have not parted."). Node states: open (pulsing, element tint), cleared (dim + ✓), boss-locked (dark + lock silhouette + tooltip). Click → flash → `CurrentNode` set → `Arena` loads. EventSystem uses `InputSystemUIInputModule` (new Input System only — StandaloneInputModule would throw).
+- `Scripts/Core/ArenaFlow.cs` — arena-side flow. `SpellbladeBootstrap.Start()` got ONE marked line: `ArenaFlow.Begin(this); // [PHASE2-03]`. Playground (`CurrentNode == null`) = exact Phase 1 behavior, zero UI. Arena mode: top banner, **Esc = abandon (permanent), V = debug victory (only while `TryFindObjectiveDirector` returns false)**. **Plan 04: replace the body of `ArenaFlow.TryFindObjectiveDirector(node)`** with the director lookup + `Configure(node)` — the debug V key then disappears automatically.
+- `SpellbladeSceneSetup` — new menu **Spellblade → Create Game Scenes** (batchmode-safe): generates `Assets/Scenes/WorldMap.unity` + `Arena.unity`, Build Settings WorldMap=0 / Arena=1. **Already run — both scenes are committed on this branch.**
+
+**Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings; `CreateGameScenes` executed headlessly (scenes + Build Settings confirmed on disk). Play-mode smoke test NOT run (headless session); checklist verified by code inspection — Ryan should click through map → arena → V → map once in-editor.
+
+**Deviations / notes:**
+1. Beacon glow is canvas-UI driven (LDR) — bloom threshold lowered to 0.6 in the map scene so it reads. If beacons still feel flat in person, the fix is world-layer HDR quads behind each node; noted, not built.
+2. "Chain glyph" on the boss lock is a minimalist two-image padlock silhouette (no glyph font available in LegacyRuntime.ttf); tooltip carries the real message.
+3. Cleared nodes are re-clickable (free-retry ethos; plan doesn't forbid replay). Replaying a cleared node just re-reports victory — idempotent, no double-add.
+4. `SampleScene.unity` left in place and pushed after WorldMap/Arena in Build Settings; the old playground scene at `Assets/Spellblade/Spellblade Playground.unity` keeps working as playground mode.
+
+---

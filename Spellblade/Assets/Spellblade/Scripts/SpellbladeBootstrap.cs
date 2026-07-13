@@ -58,6 +58,7 @@ namespace Spellblade
             SetupCamera();
             SetupPostProcessing();
             SetupHud();
+            ArenaFlow.Begin(this); // [PHASE2-03] arena mode: node flow + Esc abandon; no-op in playground (CurrentNode == null)
 
             Debug.Log("[Spellblade] Playground assembled. WASD move · Space melee · QWER disciplines · LMB cast."); // [PHASE2-01]
         }
