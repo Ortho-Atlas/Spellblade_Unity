@@ -30,6 +30,9 @@ namespace Spellblade
         protected bool Aggroed { get; set; }
         protected bool Ready { get; private set; }
 
+        private float _baseSpeed;   // [PHASE2-05] slow bookkeeping
+        private float _slowUntil;
+
         protected void Init(ObjectiveDirector director, ElementType element,
                             float maxHealth, float speed, float healthMultiplier,
                             float agentRadius = 0.45f, float agentHeight = 2f)
@@ -53,6 +56,8 @@ namespace Spellblade
             Health.Revive(); // Awake ran before maxHealth was set — sync Current
             Health.OnHealthChanged += (cur, max) => { if (cur < max) Aggroed = true; };
             Health.OnDied += Die;
+            Health.OnSlowed += ApplySlow; // [PHASE2-05] slows/roots are real now, not cosmetic
+            _baseSpeed = speed;
 
             StartCoroutine(SpawnIn());
         }
@@ -92,6 +97,23 @@ namespace Spellblade
 
         /// <summary>Per-archetype behavior, called only while alive + aggroed.</summary>
         protected abstract void Tick(float distToPlayer);
+
+        /// <summary>[PHASE2-05] Frost actually bites: slow scales agent speed down
+        /// for the duration (100% = a brief root, Rimeblast III). Latest slow wins;
+        /// speed restores once the newest one expires.</summary>
+        private void ApplySlow(float percent, float duration)
+        {
+            if (Dead || Agent == null) return;
+            _slowUntil = Mathf.Max(_slowUntil, Time.time + duration);
+            Agent.speed = _baseSpeed * Mathf.Clamp01(1f - percent);
+            StartCoroutine(RestoreSpeed());
+        }
+
+        private IEnumerator RestoreSpeed()
+        {
+            yield return new WaitUntil(() => Time.time >= _slowUntil);
+            if (!Dead && Agent != null && Agent.enabled) Agent.speed = _baseSpeed;
+        }
 
         protected void DamagePlayer(float amount)
         {

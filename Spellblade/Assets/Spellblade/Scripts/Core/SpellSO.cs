@@ -68,6 +68,8 @@ namespace Spellblade
         [Tooltip("Extra jumps after the first hit (Chain Spark = 3). Damage decays 15% per jump.")]
         public int chainCount = 0;
         public float chainRadius = 0f;
+        [Tooltip("Targets a skillshot passes through before stopping (Umbral Lance III = 1). [PHASE2-05]")]
+        public int pierceCount = 0;
 
         [Header("Sustain")]
         [Tooltip("Fraction of damage dealt returned as caster HP (0.4 = 40%).")]

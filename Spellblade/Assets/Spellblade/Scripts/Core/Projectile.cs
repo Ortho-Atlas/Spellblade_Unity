@@ -28,6 +28,11 @@ namespace Spellblade
         private float _chainMult = 1f;
         private HashSet<Transform> _chainHits;
 
+        // [PHASE2-05] Pierce state (Umbral Lance III): pass-throughs remaining +
+        // roots already skewered (never re-hit by the same shot).
+        private int _piercesLeft;
+        private HashSet<Transform> _pierced;
+
         public static Projectile Spawn(SpellSO spell, Vector3 origin, Vector3 direction, Transform owner,
                                        ProjectileTargets targets = ProjectileTargets.Everyone) // [PHASE2-04] default = untouched SpellCaster behavior
         {
@@ -64,6 +69,7 @@ namespace Spellblade
             p._targets = targets; // [PHASE2-04]
             p._chainsLeft = spell.chainCount; // [PHASE2-02]
             if (spell.chainCount > 0) p._chainHits = new HashSet<Transform>();
+            p._piercesLeft = spell.pierceCount; // [PHASE2-05]
             return p;
         }
 
@@ -93,6 +99,10 @@ namespace Spellblade
                 if (health != null && _chainHits != null && _chainHits.Contains(health.transform.root))
                     continue;
 
+                // [PHASE2-05] Pierced targets are already skewered — fly on through.
+                if (health != null && _pierced != null && _pierced.Contains(health.transform.root))
+                    continue;
+
                 if (health != null && !health.IsDead)
                 {
                     // Counter-wheel: scale damage by the target's elemental attunement.
@@ -111,6 +121,15 @@ namespace Spellblade
 
                     // [PHASE2-02] Chain Spark: arc to the nearest fresh target in range.
                     if (_chainsLeft > 0) TryChainFrom(hit.point, health.transform.root);
+
+                    // [PHASE2-05] Umbral Lance III: skewer and keep flying.
+                    if (_piercesLeft > 0)
+                    {
+                        _piercesLeft--;
+                        (_pierced ??= new HashSet<Transform>()).Add(health.transform.root);
+                        SpellbladeParticles.Burst(hit.point, _spell.themeColor, 14, 4f, 0.1f);
+                        continue;
+                    }
 
                     Impact(hit.point);
                     return;

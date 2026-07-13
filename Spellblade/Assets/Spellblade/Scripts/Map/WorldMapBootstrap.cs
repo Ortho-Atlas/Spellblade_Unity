@@ -41,6 +41,10 @@ namespace Spellblade
         private Transform _parallaxRoot;
         private RectTransform _tooltip;
         private Text _tooltipText;
+        private Text _walletText;       // [PHASE2-05] live currency readout
+        private SanctumPanel _sanctum;  // [PHASE2-05]
+
+        public Transform CanvasRoot => _canvas.transform; // [PHASE2-05] Sanctum builds here
 
         private static Sprite _softCircle;
 
@@ -305,9 +309,10 @@ namespace Spellblade
             barRect.sizeDelta = new Vector2(0f, 56f);
             bar.GetComponent<Image>().color = new Color(0.02f, 0.02f, 0.05f, 0.78f);
 
-            var save = SaveSystem.Data;
-            var wallet = MakeText("Wallet", $"ARCANE ESSENCE  {save.arcaneEssence}      ELEMENT SHARDS  {save.elementShards}",
-                                  Vector2.zero, 18, FontStyle.Normal, new Color(0.75f, 0.72f, 0.62f));
+            var wallet = MakeText("Wallet", "", Vector2.zero, 18, FontStyle.Normal,
+                                  new Color(0.75f, 0.72f, 0.62f));
+            _walletText = wallet.GetComponent<Text>(); // [PHASE2-05]
+            RefreshWallet();
             var walletRect = wallet.GetComponent<RectTransform>();
             walletRect.SetParent(bar.transform, false);
             walletRect.anchorMin = new Vector2(0f, 0.5f);
@@ -317,7 +322,7 @@ namespace Spellblade
             walletRect.sizeDelta = new Vector2(800f, 40f);
             wallet.GetComponent<Text>().alignment = TextAnchor.MiddleLeft;
 
-            // Sanctum button — placeholder; Plan 05 replaces it with the upgrade panel.
+            // Sanctum button — opens the upgrade panel. [PHASE2-05]
             var button = new GameObject("Sanctum Button", typeof(Image), typeof(Button));
             button.transform.SetParent(bar.transform, false);
             var btnRect = button.GetComponent<RectTransform>();
@@ -327,8 +332,7 @@ namespace Spellblade
             btnRect.anchoredPosition = new Vector2(-28f, 0f);
             btnRect.sizeDelta = new Vector2(170f, 38f);
             button.GetComponent<Image>().color = new Color(0.25f, 0.18f, 0.40f, 0.9f);
-            button.GetComponent<Button>().onClick.AddListener(
-                () => Debug.Log("[Spellblade] Sanctum opens with Plan 05 (progression)."));
+            button.GetComponent<Button>().onClick.AddListener(ToggleSanctum); // [PHASE2-05]
 
             var btnLabel = MakeText("Sanctum Label", "SANCTUM", Vector2.zero, 18, FontStyle.Bold,
                                     new Color(0.9f, 0.85f, 1f));
@@ -378,6 +382,21 @@ namespace Spellblade
         }
 
         public void HideTooltip() => _tooltip.gameObject.SetActive(false);
+
+        // ------------------------------------------------------------ [PHASE2-05]
+
+        public void RefreshWallet()
+        {
+            if (_walletText == null) return;
+            var save = SaveSystem.Data;
+            _walletText.text = $"ARCANE ESSENCE  {save.arcaneEssence}      ELEMENT SHARDS  {save.elementShards}";
+        }
+
+        private void ToggleSanctum()
+        {
+            if (_sanctum == null) _sanctum = SanctumPanel.Build(this);
+            _sanctum.Toggle();
+        }
 
         // ---------------------------------------------------------------- Helpers
 

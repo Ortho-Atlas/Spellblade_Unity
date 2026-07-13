@@ -36,6 +36,7 @@ namespace Spellblade
             public Image cooldownSweep; // radial drain overlay
             public Text letter;
             public Text cost;
+            public Text rankPips;       // [PHASE2-05] I / II / III
             public GameObject lockGlyph;
         }
 
@@ -117,6 +118,8 @@ namespace Spellblade
                 var texPos = SlotDirections[i] * 82f;
                 slot.letter = MakeText($"Letter {i}", texPos + new Vector2(0f, 7f), 34, FontStyle.Bold);
                 slot.cost = MakeText($"Cost {i}", texPos + new Vector2(0f, -18f), 15, FontStyle.Normal);
+                slot.rankPips = MakeText($"Rank {i}", texPos + new Vector2(0f, 27f), 13, FontStyle.Bold); // [PHASE2-05]
+                slot.rankPips.color = new Color(0.95f, 0.85f, 0.5f, 0.95f);
 
                 // Minimalist padlock (same silhouette as the map's boss lock).
                 slot.lockGlyph = new GameObject($"Lock {i}", typeof(RectTransform));
@@ -265,7 +268,7 @@ namespace Spellblade
             }
         }
 
-        /// <summary>Repaint letters/costs/locks for the current discipline.</summary>
+        /// <summary>Repaint letters/costs/locks/rank pips for the current discipline.</summary>
         private void Reskin()
         {
             var discipline = _caster.Active;
@@ -275,8 +278,17 @@ namespace Spellblade
             {
                 var spell = i < discipline.spells.Count ? discipline.spells[i] : null;
                 _slots[i].letter.text = spell != null ? spell.displayName.Substring(0, 1) : "";
-                _slots[i].cost.text = spell != null && spell.manaCost > 0f
-                    ? Mathf.RoundToInt(spell.manaCost).ToString() : "";
+
+                bool unlocked = spell != null && ProgressionGate.IsUnlocked(spell.spellId);
+                // [PHASE2-05] Locked slots advertise their shard price instead of mana.
+                _slots[i].cost.text = spell == null ? ""
+                    : !unlocked ? $"{ProgressionMath.SlotUnlockCost(i)} shards"
+                    : spell.manaCost > 0f ? Mathf.RoundToInt(spell.manaCost).ToString() : "";
+
+                // [PHASE2-05] Rank pips — arena only (playground runs base ranks).
+                int rank = spell != null && GameSession.CurrentNode != null
+                    ? ProgressionMath.GetRank(spell.spellId) : 1;
+                _slots[i].rankPips.text = rank switch { 3 => "III", 2 => "II", _ => "" };
             }
         }
 

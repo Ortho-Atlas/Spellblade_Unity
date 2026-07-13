@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
 using UnityEngine.UI;
@@ -20,7 +21,9 @@ namespace Spellblade
     {
         public Transform Player { get; private set; }
         public ElementType RegionElement { get; private set; }
+        public bool PlayerDiedThisArena { get; private set; } // [PHASE2-05] Duelist's Plume feat flag
 
+        private ArenaNodeDef _node; // [PHASE2-05]
         private Canvas _canvas;
         private Text _objectiveText;
         private Font _font;
@@ -28,6 +31,7 @@ namespace Spellblade
 
         public void Configure(ArenaNodeDef node)
         {
+            _node = node; // [PHASE2-05] rewards need it at victory time
             Player = GameObject.Find("Player")?.transform;
             RegionElement = ElementFor(node.regionId);
             _font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -82,12 +86,65 @@ namespace Spellblade
         {
             if (_ended) return;
             _ended = true;
-            StartCoroutine(VictorySequence());
+
+            // [PHASE2-05] Earning — computed BEFORE ReportArenaResult marks the clear.
+            bool firstClear = _node != null && !GameSession.IsNodeCleared(_node.id);
+            int essence = 0, shards = 0;
+            var newGear = new List<string>();
+            if (_node != null)
+            {
+                essence = _node.isBossNode ? (firstClear ? 60 : 25)
+                        : _node.difficultyTier >= 2 ? (firstClear ? 30 : 12)
+                        : (firstClear ? 20 : 8);
+                // First clears drop shards everywhere; only boss-capped nodes keep paying on replay.
+                shards = _node.isBossNode ? (firstClear ? 5 : 1) : (firstClear ? 2 : 0);
+
+                var save = SaveSystem.Data;
+                save.arcaneEssence += essence;
+                save.elementShards += shards;
+                GrantFeatGear(newGear);
+                SaveSystem.Save();
+            }
+
+            StartCoroutine(VictorySequence(essence, shards, newGear));
         }
 
-        private IEnumerator VictorySequence()
+        /// <summary>[PHASE2-05] Feat-based cosmetics (never bought with currency).</summary>
+        private void GrantFeatGear(List<string> newGearNames)
+        {
+            void TryUnlock(string id)
+            {
+                if (GearCatalog.Unlock(id)) newGearNames.Add(GearCatalog.Find(id).displayName);
+            }
+
+            if (_node.isBossNode)
+            {
+                if (_node.regionId == "shadow") { TryUnlock("hat_umbral_court"); TryUnlock("staff_crystal_shadow"); }
+                if (_node.regionId == "frost") { TryUnlock("rimeholt_crown"); TryUnlock("staff_crystal_frost"); }
+                if (!PlayerDiedThisArena) TryUnlock("duelists_plume");
+            }
+
+            // Robe trim: every node in the region cleared (counting this one).
+            var region = RegionDefs.Find(_node.regionId);
+            if (region != null)
+            {
+                bool all = true;
+                foreach (var placement in region.nodes)
+                    if (placement.node.id != _node.id && !GameSession.IsNodeCleared(placement.node.id))
+                    { all = false; break; }
+                if (all) TryUnlock($"robe_tint_{_node.regionId}");
+            }
+        }
+
+        private IEnumerator VictorySequence(int essence, int shards, List<string> newGear)
         {
             ShowSplash("VICTORY", new Color(0.95f, 0.82f, 0.35f), 1.5f, 64);
+            if (essence > 0 || shards > 0) // [PHASE2-05] reward toast
+                ShowSplash($"+{essence} Essence   ·   +{shards} Shards",
+                           new Color(0.85f, 0.78f, 0.55f), 1.5f, 28, yAnchor: 0.55f);
+            if (newGear.Count > 0)
+                ShowSplash($"New gear: {string.Join(", ", newGear)}",
+                           new Color(0.75f, 0.9f, 1f), 1.5f, 22, yAnchor: 0.50f);
             yield return new WaitForSeconds(1.5f);
             GameSession.ReportArenaResult(true);
         }
@@ -97,6 +154,7 @@ namespace Spellblade
         {
             if (_ended) return;
             _ended = true;
+            PlayerDiedThisArena = true; // [PHASE2-05]
             GameSession.ReportArenaResult(false);
         }
 
@@ -107,14 +165,16 @@ namespace Spellblade
             if (_objectiveText != null) _objectiveText.text = text;
         }
 
-        /// <summary>Big center-screen text that fades out (wave numbers, boss intro, victory).</summary>
-        public void ShowSplash(string message, Color color, float life, int fontSize = 52)
+        /// <summary>Big center-screen text that fades out (wave numbers, boss intro,
+        /// victory, reward toasts — yAnchor stacks multiple lines). </summary>
+        public void ShowSplash(string message, Color color, float life, int fontSize = 52,
+                               float yAnchor = 0.62f)
         {
             var go = new GameObject("Splash", typeof(Text));
             go.transform.SetParent(_canvas.transform, false);
 
             var rect = (RectTransform)go.transform;
-            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.62f);
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, yAnchor);
             rect.sizeDelta = new Vector2(1200f, 110f);
             rect.anchoredPosition = Vector2.zero;
 

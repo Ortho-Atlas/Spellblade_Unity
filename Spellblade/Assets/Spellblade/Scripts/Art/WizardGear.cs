@@ -40,6 +40,98 @@ namespace Spellblade
 
             BuildRobe(player,
                 bone: hipsBone != null ? hipsBone : MakeAnchor(player, new Vector3(0f, 0.95f, 0f)));
+
+            ApplyEquippedGear(player); // [PHASE2-05] cosmetics from the save, additive on the base kit
+        }
+
+        // ------------------------------------------------------------ [PHASE2-05]
+
+        /// <summary>Render every equipped cosmetic from SaveSystem.Data.equippedGear.
+        /// All variants are ADDITIVE pieces on the base hat/staff/robe (the base kit
+        /// never changes shape, so unequipping is just not adding).</summary>
+        private static void ApplyEquippedGear(GameObject player)
+        {
+            var hat = player.transform.Find("Wizard Hat");
+            var staff = player.transform.Find("Wizard Staff");
+            var robe = player.transform.Find("Wizard Robe");
+
+            foreach (var id in SaveSystem.Data.equippedGear)
+            {
+                switch (id)
+                {
+                    case "hat_umbral_court" when hat != null:
+                    {
+                        // Taller: two extra crooked tiers past the tip, violet band glow.
+                        var violet = ElementMath.ColorOf(ElementType.Umbra);
+                        var glow = SpellbladeFx.MakeEmissive(violet * 0.5f, violet, 2.2f);
+                        var cloth = SpellbladeFx.MakeLit(Cloth, 0.12f);
+                        Piece(hat.gameObject, glow, PrimitiveType.Cylinder, new Vector3(0f, 0.105f, 0f), new Vector3(0.36f, 0.012f, 0.36f), 0f); // violet band glow
+                        Piece(hat.gameObject, cloth, PrimitiveType.Cylinder, new Vector3(0.24f, 1.00f, 0f), new Vector3(0.045f, 0.10f, 0.045f), 44f);
+                        Piece(hat.gameObject, cloth, PrimitiveType.Cylinder, new Vector3(0.33f, 1.13f, 0f), new Vector3(0.028f, 0.08f, 0.028f), 58f);
+                        Piece(hat.gameObject, glow, PrimitiveType.Sphere, new Vector3(0.39f, 1.21f, 0f), Vector3.one * 0.05f, 0f);
+                        break;
+                    }
+                    case "rimeholt_crown" when hat != null:
+                    {
+                        // Icy circlet: ring of frost spikes around the band.
+                        var ice = ElementMath.ColorOf(ElementType.Frost);
+                        var iceMat = SpellbladeFx.MakeEmissive(ice * 0.45f, ice, 1.8f);
+                        for (int i = 0; i < 8; i++)
+                        {
+                            float angle = i * 45f * Mathf.Deg2Rad;
+                            Piece(hat.gameObject, iceMat, PrimitiveType.Cube,
+                                  new Vector3(Mathf.Cos(angle) * 0.30f, 0.115f, Mathf.Sin(angle) * 0.30f),
+                                  new Vector3(0.03f, 0.09f, 0.03f), 0f);
+                        }
+                        break;
+                    }
+                    case "duelists_plume" when hat != null:
+                    {
+                        var plumeMat = SpellbladeFx.MakeLit(new Color(0.85f, 0.82f, 0.75f), 0.35f);
+                        Piece(hat.gameObject, plumeMat, PrimitiveType.Cube, new Vector3(-0.30f, 0.30f, 0f), new Vector3(0.03f, 0.34f, 0.09f), -28f);
+                        Piece(hat.gameObject, plumeMat, PrimitiveType.Sphere, new Vector3(-0.40f, 0.46f, 0f), new Vector3(0.06f, 0.12f, 0.1f), 0f);
+                        break;
+                    }
+                    case "staff_crystal_shadow" when staff != null:
+                        AddStaffCrystals(staff.gameObject, ElementMath.ColorOf(ElementType.Umbra));
+                        break;
+                    case "staff_crystal_frost" when staff != null:
+                        AddStaffCrystals(staff.gameObject, ElementMath.ColorOf(ElementType.Frost));
+                        break;
+                    case "robe_tint_shadow" when robe != null:
+                        AddRobeTrim(robe.gameObject, ElementMath.ColorOf(ElementType.Umbra));
+                        break;
+                    case "robe_tint_frost" when robe != null:
+                        AddRobeTrim(robe.gameObject, ElementMath.ColorOf(ElementType.Frost));
+                        break;
+                }
+            }
+        }
+
+        /// <summary>Shard cluster orbiting the staff orb. Named so DisciplineAura's
+        /// "Staff Orb" retint never touches them — the crystals keep their region color.</summary>
+        private static void AddStaffCrystals(GameObject staff, Color color)
+        {
+            var mat = SpellbladeFx.MakeEmissive(color * 0.5f, color, 2.6f);
+            var offsets = new[]
+            {
+                new Vector3(0.12f, 0.90f, 0.03f),
+                new Vector3(-0.07f, 0.99f, -0.04f),
+                new Vector3(0.05f, 1.05f, 0.08f),
+            };
+            for (int i = 0; i < offsets.Length; i++)
+            {
+                var shard = Piece(staff, mat, PrimitiveType.Cube, offsets[i],
+                                  new Vector3(0.035f, 0.09f, 0.035f), 30f + i * 40f);
+                shard.name = "Staff Crystal";
+            }
+        }
+
+        private static void AddRobeTrim(GameObject robe, Color color)
+        {
+            var mat = SpellbladeFx.MakeEmissive(color * 0.45f, color, 1.2f);
+            Piece(robe, mat, PrimitiveType.Cylinder, new Vector3(0f, -0.70f, 0f), new Vector3(0.585f, 0.010f, 0.585f), 0f); // tinted hem ring
+            Piece(robe, mat, PrimitiveType.Cylinder, new Vector3(0f, -0.30f, 0f), new Vector3(0.435f, 0.008f, 0.435f), 0f); // waist ring
         }
 
         // -- The hat: brim + four tapering, increasingly crooked tiers -----------

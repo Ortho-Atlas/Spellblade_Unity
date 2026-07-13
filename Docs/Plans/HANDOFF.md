@@ -105,3 +105,30 @@
 **For Plan 05:** unlock = append spellId to `SaveSystem.Data.unlockedSpells` (gate + wheel lock glyphs react automatically); spell ranks can hook `SpellCaster.ActiveSpell` reads; `MeleeStrike.damageMultiplier` + `EnemyBase.OnKilled` still the other hooks.
 
 ---
+
+## Plan 05 — Progression, Save & The Sanctum · `phase2/progression` · 2026-07-12 · PHASE 2 COMPLETE
+
+**Earning (`ObjectiveDirector.Victory`):** T1 20/8 · T2 30/12 · boss 60/25 Essence (first/replay); Shards 2 first-clear, 5 boss first-clear, +1 boss replay (read "mini-boss-capped wave node" as = boss nodes). Computed BEFORE `ReportArenaResult` marks the clear; reward toast + "New gear:" line stack under the VICTORY splash (`ShowSplash` gained a `yAnchor`). Saved immediately.
+
+**Unlocks & ranks:** `ProgressionGate` needed ZERO changes — Plan 02 already made it save-backed; the Sanctum just writes ids into `unlockedSpells`. Ranks live in `spellRanks` ("id:rank"); `ProgressionMath.Apply` mutates the RUNTIME roster (SpellLibrary hands out fresh instances every load — the authored values are untouchable by construction). II = +20% (damage/DoT/shield/manaRestore), III = +40% + signature bumps: Lance pierces 1 (new `SpellSO.pierceCount` + Projectile pierce support), Shadowstep 11m, Rimeblast slow→0.6s root, Ice Ward 70, Chain Spark +2, Thunderhead r3.2, Hemorrhage r3.5, Leech 60%. Wheel shows rank pips (II/III, arena only) and shard prices on locked slots.
+
+**Stats (Essence, 10×level, 5 levels):** Vitality +12 HP · Attunement +10 mana · Meditation +1.2 regen · Swiftness +0.2 speed (applied to `agent.speed` — WasdController drives from it) · Bladecraft +15% melee. Applied by `ProgressionMath.ApplyArenaLoadout` from ONE marked bootstrap line, ARENA ONLY — playground stays a baseline testbed with everything unlocked at rank I.
+
+**Gear (feats, never currency):** 7 items in `GearCatalog` (Umbral hat, Rimeholt crown, Duelist's Plume, 2 staff crystals, 2 robe trims), granted in `GrantFeatGear` on boss/region-complete feats. One equipped item per category (equip swaps). `WizardGear.ApplyEquippedGear` renders them ADDITIVELY on the base hat/staff/robe — staff crystals are separate named pieces so DisciplineAura's "Staff Orb" retint never touches them. Cosmetics render in playground too.
+
+**The Sanctum (`Scripts/Map/SanctumPanel.cs`):** replaces the placeholder button. Right-side 40% panel, 4 tabs — Spells (4×4 cards, unlock/rank buttons, insufficient-funds buttons disabled), Attributes (pips + buy), Gear (equip toggles; locked items shown grayed WITH their feat hint — slight upgrade over the plan's unlocked-only grid), Codex (placeholder lore, "the mists have not parted"). Header currencies + map footer refresh on every purchase; every buy saves immediately. **Roster factory moved: `SpellbladeBootstrap.CreateDisciplines` → `Scripts/Core/SpellLibrary.CreateDisciplines`** (the Sanctum needs the 16 spells on the map scene, where no SpellCaster exists); the bootstrap keeps a one-line delegate.
+
+**Bonus mechanic (required by Rimeblast III):** enemy slows are now REAL — `EnemyBase` scales `agent.speed` by `OnSlowed` for the duration (100% = root). Rimeblast/Frost Nova bite on grunts now, not just dummies.
+
+**Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings, first pass. Fresh-save flow verified by logic walk: missing JSON → shadow-only, 0 currencies, slot-1 spells, rank I, level-0 stats — identical baseline to pre-Plan-05 arenas, so completability is unchanged. In-editor economy pass recommended (earn → spend → next arena).
+
+**Deviations / notes:**
+1. Duelist's Plume: death currently ENDS an arena (defeat), so any boss victory is definitionally deathless — the `PlayerDiedThisArena` flag is wired for future respawn mechanics but is always false at victory today. The plume is effectively "clear any boss."
+2. Rewards granted at the victory banner; Esc during the 1.5s banner still returns without the clear recorded, but currencies keep (earned fair and square).
+3. Robe trims require the region's boss node cleared too ("all nodes in a region" read literally).
+4. Sanctum tabs have no ScrollRect — all four fit 1080p reference; add one if content grows.
+5. `SaveSystem._data` caches statically: deleting the JSON mid-session doesn't reset until domain reload (checklist's "survive editor restart" framing is the correct test).
+
+**Phase 2 status: all 5 plans shipped.** Merge order held (01→03→04→02→05). Remaining known polish: melee swing animation, HDR beacons if map bloom underwhelms, wave-3 composition ("3+2+1") interpretation, Sanctum ScrollRect, and Ryan's lore brain-dump into RegionDefs + Codex.
+
+---
