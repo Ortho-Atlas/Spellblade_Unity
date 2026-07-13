@@ -30,6 +30,9 @@ namespace Spellblade
 
         private float _readyAt;
 
+        /// <summary>Seconds until the next swing (0 = ready). The HUD melee card reads this.</summary>
+        public float CooldownRemaining => Mathf.Max(0f, _readyAt - Time.time);
+
         private void Update()
         {
             var kb = Keyboard.current;

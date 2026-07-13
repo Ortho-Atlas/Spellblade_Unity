@@ -132,3 +132,16 @@
 **Phase 2 status: all 5 plans shipped.** Merge order held (01→03→04→02→05). Remaining known polish: melee swing animation, HDR beacons if map bloom underwhelms, wave-3 composition ("3+2+1") interpretation, Sanctum ScrollRect, and Ryan's lore brain-dump into RegionDefs + Codex.
 
 ---
+
+## Post-Phase-2 — Unified bottom HUD bar + MAP button · `phase2/arena-hud` · 2026-07-12 (Ryan's request, no plan doc)
+
+**Ask:** clickable UI to get back to the map / pick another arena, and a bottom bar showing selected spell, health, mana, etc.
+
+**Shipped (`HudController` restructure + one `MeleeStrike` property):**
+- **Bottom bar** (660×96, bottom-center): active spell card (discipline-tinted frame, spell initial, name, mana cost, LMB hint, vertical cooldown drain + countdown — mirrors the wheel selection live), melee card (crossed-blades glyph, SPACE hint, cooldown drain fed by new `MeleeStrike.CooldownRemaining`), HP bar with numbers (shows `(+N)` while an Ice Ward shield holds), mana bar with numbers, discipline dots + SCROLL hint. The wheel stays bottom-right, no overlap at reference resolution.
+- **MAP button** (top-right, "abandon arena" subtext in arena mode): arena → `GameSession.ReportArenaResult(false)` (identical semantics to Esc — no clear recorded); playground → loads WorldMap directly. Arena scenes now get an `EventSystem` (`InputSystemUIInputModule`) since the HUD has its first clickable element.
+- Arena-selection-from-UI = this button + the existing map node flow; no separate arena picker built.
+
+**Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings. Layout numbers are reference-resolution reasoning, not eyeballed — worth a look in Play mode.
+
+---
