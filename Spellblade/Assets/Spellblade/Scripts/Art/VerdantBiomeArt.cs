@@ -1,234 +1,280 @@
+using Unity.AI.Navigation;
 using UnityEngine;
 
 namespace Spellblade
 {
     /// <summary>
-    /// VERDANT DEEP set dressing ([BIOME]) — the earth-magic biome. An ancient
-    /// courtyard the forest took back: mossy boulders, fallen logs, root arches,
-    /// rune-carved standing stones gone green, glowing mushroom clusters, and
-    /// spore motes drifting through gold light. Built from primitives before the
-    /// NavMesh bake, same as ShadowBiomeArt — big pieces block pathing, visual
-    /// moss/mushrooms don't (colliders stripped).
+    /// VERDANT DEEP set dressing ([BIOME], v2 per Ryan: "trees and open in a
+    /// field in nature") — an open sunlit meadow ringed by procedural forest.
+    /// No walls: the treeline is the visual boundary and the NavMesh is the
+    /// real one (the outer field is marked NotWalkable, so player and enemies
+    /// stay in the meadow while the eye wanders into the trees).
+    ///
+    /// Every tree is primitives: tapered trunk, angled branches, 3 layered
+    /// canopy spheres, per-tree random height/lean/green — no two alike, no
+    /// imported assets. Canopies sit high enough to never carve the NavMesh.
     /// </summary>
     public static class VerdantBiomeArt
     {
-        private static readonly Color Moss = new(0.22f, 0.34f, 0.14f);
-        private static readonly Color Bark = new(0.19f, 0.14f, 0.09f);
-        private static readonly Color OldStone = new(0.24f, 0.25f, 0.20f);
-        private static readonly Color SporeGlow = new(0.65f, 0.85f, 0.35f); // living green-gold
+        private static readonly Color Bark = new(0.21f, 0.15f, 0.10f);
+        private static readonly Color DeepLeaf = new(0.12f, 0.30f, 0.10f);
+        private static readonly Color SunLeaf = new(0.36f, 0.48f, 0.13f);
+        private static readonly Color Grass = new(0.30f, 0.42f, 0.14f);
+        private static readonly Color SporeGlow = new(0.65f, 0.85f, 0.35f);
 
         public static void Build(float arenaSize)
         {
             var root = new GameObject("Verdant Dressing").transform;
             float half = arenaSize / 2f;
 
-            var mossMat = SpellbladeFx.MakeLit(Moss, 0.25f);
-            var barkMat = SpellbladeFx.MakeLit(Bark, 0.2f);
-            var stoneMat = SpellbladeFx.MakeLit(OldStone, 0.3f);
-
-            BuildBoulders(root, mossMat, stoneMat);
-            BuildFallenLogs(root, barkMat, mossMat);
-            BuildRootArch(root, barkMat);
-            BuildRuneStones(root, stoneMat);
-            BuildMossPatches(root, mossMat);
-            BuildMushroomClusters(root);
+            BuildOuterField(root, arenaSize);
+            BuildTreeline(root, half);
+            BuildFieldTrees(root);
+            BuildGrassAndFlowers(root, half);
+            BuildNatureClaimedRuin(root);
             SporeMotes(arenaSize);
         }
 
-        // -- Giant mossy boulders at the flanks (block pathing) ------------------
+        // -- The world beyond the meadow: visible grass, unwalkable ----------------
 
-        private static void BuildBoulders(Transform root, Material moss, Material stone)
+        private static void BuildOuterField(Transform root, float arenaSize)
         {
-            var boulders = new (Vector3 pos, float size, float yaw)[]
-            {
-                (new Vector3(-9.5f, 0f, 10.5f), 2.6f, 20f),
-                (new Vector3(10f, 0f, 11f), 3.1f, 130f),
-                (new Vector3(-12f, 0f, -1f), 2.2f, 260f),
-                (new Vector3(12.5f, 0f, -3f), 2.4f, 75f),
-            };
-            foreach (var (pos, size, yaw) in boulders)
-            {
-                // Stone core with a moss cap slightly offset upward — reads as growth.
-                var core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                core.name = "Boulder";
-                core.transform.SetParent(root);
-                core.transform.position = pos + Vector3.up * (size * 0.32f);
-                core.transform.localScale = new Vector3(size, size * 0.75f, size * 0.9f);
-                core.transform.rotation = Quaternion.Euler(0f, yaw, Random.Range(-6f, 6f));
-                core.GetComponent<Renderer>().material = stone;
+            var outer = GameObject.CreatePrimitive(PrimitiveType.Plane);
+            outer.name = "Outer Field";
+            outer.transform.SetParent(root);
+            outer.transform.position = new Vector3(0f, -0.03f, 0f); // under the meadow, no z-fight
+            outer.transform.localScale = Vector3.one * (arenaSize * 3f / 10f);
+            outer.GetComponent<Renderer>().material =
+                SpellbladeFx.MakeLit(new Color(0.10f, 0.16f, 0.07f), 0.3f); // darker under-canopy grass
 
-                var cap = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                cap.name = "Boulder Moss";
-                Object.DestroyImmediate(cap.GetComponent<Collider>()); // visual only
-                cap.transform.SetParent(core.transform, false);
-                cap.transform.localPosition = new Vector3(0f, 0.18f, 0f);
-                cap.transform.localScale = Vector3.one * 0.96f;
-                cap.GetComponent<Renderer>().material = moss;
-            }
+            // The real arena boundary: everything out here bakes as NotWalkable.
+            var modifier = outer.AddComponent<NavMeshModifier>();
+            modifier.overrideArea = true;
+            modifier.area = 1; // Not Walkable
         }
 
-        // -- Fallen logs along the edges ------------------------------------------
+        // -- The forest wall: two staggered rings of procedural trees ---------------
 
-        private static void BuildFallenLogs(Transform root, Material bark, Material moss)
+        private static void BuildTreeline(Transform root, float half)
         {
-            var logs = new (Vector3 pos, float length, float yaw)[]
+            var ring = new (int count, float radius, float scaleMin, float scaleMax)[]
             {
-                (new Vector3(-4f, 0.45f, 12.5f), 7f, 78f),
-                (new Vector3(8.5f, 0.4f, -11f), 5.5f, 15f),
-                (new Vector3(-11f, 0.4f, -9f), 4.5f, 305f),
+                (18, half + 1.8f, 0.9f, 1.15f),  // inner row — the edge of the clearing
+                (14, half + 5.2f, 1.1f, 1.45f),  // outer row — bigger, fading into fog
             };
-            foreach (var (pos, length, yaw) in logs)
+            foreach (var (count, radius, scaleMin, scaleMax) in ring)
             {
-                var log = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                log.name = "Fallen Log";
-                log.transform.SetParent(root);
-                log.transform.position = pos;
-                log.transform.localScale = new Vector3(0.9f, length / 2f, 0.9f);
-                log.transform.rotation = Quaternion.Euler(90f, yaw, 0f); // lying down
-                log.GetComponent<Renderer>().material = bark;
-
-                var mossStrip = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                mossStrip.name = "Log Moss";
-                Object.DestroyImmediate(mossStrip.GetComponent<Collider>());
-                mossStrip.transform.SetParent(log.transform, false);
-                mossStrip.transform.localPosition = new Vector3(0f, 0f, -0.14f); // upper side when lying
-                mossStrip.transform.localScale = new Vector3(0.92f, 0.98f, 0.7f);
-                mossStrip.GetComponent<Renderer>().material = moss;
-            }
-        }
-
-        // -- A great root arch over the north approach ------------------------------
-
-        private static void BuildRootArch(Transform root, Material bark)
-        {
-            var arch = new GameObject("Root Arch").transform;
-            arch.SetParent(root);
-            arch.position = new Vector3(0f, 0f, 12f);
-
-            var pieces = new (Vector3 pos, Vector3 scale, Vector3 euler)[]
-            {
-                (new Vector3(-3.2f, 1.6f, 0f), new Vector3(0.8f, 3.4f, 0.8f), new Vector3(0f, 0f, 14f)),
-                (new Vector3(3.2f, 1.6f, 0f), new Vector3(0.8f, 3.4f, 0.8f), new Vector3(0f, 0f, -14f)),
-                (new Vector3(0f, 3.5f, 0f), new Vector3(0.65f, 3.6f, 0.65f), new Vector3(0f, 0f, 90f)), // spanning root
-                (new Vector3(-2.2f, 3.0f, 0.3f), new Vector3(0.35f, 1.4f, 0.35f), new Vector3(20f, 0f, 55f)), // tendril
-                (new Vector3(2.4f, 2.9f, -0.3f), new Vector3(0.3f, 1.2f, 0.3f), new Vector3(-15f, 0f, -60f)),
-            };
-            foreach (var (pos, scale, euler) in pieces)
-            {
-                var piece = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                piece.name = "Root";
-                piece.transform.SetParent(arch, false);
-                piece.transform.localPosition = pos;
-                piece.transform.localScale = scale;
-                piece.transform.localRotation = Quaternion.Euler(euler);
-                piece.GetComponent<Renderer>().material = bark;
-            }
-        }
-
-        // -- Standing stones, runes gone green ---------------------------------------
-
-        private static void BuildRuneStones(Transform root, Material stone)
-        {
-            var runeMat = SpellbladeFx.MakeEmissive(SporeGlow * 0.4f, SporeGlow, 2f);
-            var stones = new (Vector3 pos, float yaw)[]
-            {
-                (new Vector3(-13f, 0f, 6f), 35f),
-                (new Vector3(13f, 0f, 4f), 210f),
-                (new Vector3(6f, 0f, -13f), 120f),
-            };
-            foreach (var (pos, yaw) in stones)
-            {
-                var monolith = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                monolith.name = "Rune Stone";
-                monolith.transform.SetParent(root);
-                monolith.transform.position = pos + Vector3.up * 1.3f;
-                monolith.transform.localScale = new Vector3(0.9f, 2.6f, 0.5f);
-                monolith.transform.rotation = Quaternion.Euler(Random.Range(-4f, 4f), yaw, Random.Range(-3f, 3f));
-                monolith.GetComponent<Renderer>().material = stone;
-
-                for (int i = 0; i < 3; i++)
+                float phase = Random.Range(0f, 360f);
+                for (int i = 0; i < count; i++)
                 {
-                    var rune = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    rune.name = "Rune";
-                    Object.DestroyImmediate(rune.GetComponent<Collider>());
-                    rune.transform.SetParent(monolith.transform, false);
-                    rune.transform.localPosition = new Vector3(0f, 0.28f - i * 0.24f, -0.52f);
-                    rune.transform.localScale = new Vector3(0.22f, 0.1f, 0.05f);
-                    rune.GetComponent<Renderer>().material = runeMat;
-                    rune.AddComponent<RunePulse>(); // same slow breath as the Shadow runes
+                    float angle = (phase + i * (360f / count) + Random.Range(-8f, 8f)) * Mathf.Deg2Rad;
+                    float r = radius + Random.Range(-0.8f, 1.2f);
+                    var pos = new Vector3(Mathf.Sin(angle) * r, 0f, Mathf.Cos(angle) * r);
+                    BuildTree(root, pos, Random.Range(scaleMin, scaleMax));
                 }
             }
         }
 
-        // -- Moss patches on the loam (visual only — no pathing bumps) ----------------
+        // -- A few big trees IN the meadow (cover to duck bolts behind) -------------
 
-        private static void BuildMossPatches(Transform root, Material moss)
+        private static void BuildFieldTrees(Transform root)
         {
-            var patches = new (Vector3 pos, float size)[]
+            var spots = new Vector3[]
             {
-                (new Vector3(-5f, 0f, 3f), 3.4f),
-                (new Vector3(6f, 0f, 7f), 2.6f),
-                (new Vector3(2f, 0f, -7f), 3.8f),
-                (new Vector3(-8f, 0f, -5f), 2.2f),
-                (new Vector3(9f, 0f, 0f), 2.0f),
+                new(-8.5f, 0f, 7.5f),
+                new(9f, 0f, 5f),
+                new(-7f, 0f, -8f),
+                new(8f, 0f, -9.5f),
             };
-            foreach (var (pos, size) in patches)
+            foreach (var pos in spots)
+                BuildTree(root, pos, Random.Range(1.05f, 1.3f));
+        }
+
+        /// <summary>One procedural tree: tapered trunk (collider kept — enemies path
+        /// around it), 2 angled branches, 3 layered canopy spheres. Canopy bottoms
+        /// stay ~3m up so the NavMesh bake never reads them as ceilings.</summary>
+        private static void BuildTree(Transform root, Vector3 pos, float scale)
+        {
+            var tree = new GameObject("Tree").transform;
+            tree.SetParent(root);
+            tree.position = pos;
+            tree.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+
+            float height = Random.Range(3.6f, 4.8f) * scale;
+            var barkMat = SpellbladeFx.MakeLit(
+                Color.Lerp(Bark, new Color(0.28f, 0.22f, 0.15f), Random.value * 0.5f), 0.2f);
+
+            // Trunk — the one piece that keeps its collider.
+            var trunk = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            trunk.name = "Trunk";
+            trunk.transform.SetParent(tree, false);
+            trunk.transform.localPosition = new Vector3(0f, height / 2f, 0f);
+            trunk.transform.localScale = new Vector3(0.34f * scale, height / 2f, 0.34f * scale);
+            trunk.transform.localRotation = Quaternion.Euler(Random.Range(-3.5f, 3.5f), 0f, Random.Range(-3.5f, 3.5f));
+            trunk.GetComponent<Renderer>().material = barkMat;
+
+            // A couple of bare branches reaching out of the canopy line.
+            for (int i = 0; i < 2; i++)
             {
-                var patch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                patch.name = "Moss Patch";
-                Object.DestroyImmediate(patch.GetComponent<Collider>());
-                patch.transform.SetParent(root);
-                patch.transform.position = pos + Vector3.up * 0.012f;
-                patch.transform.localScale = new Vector3(size, 0.012f, size * Random.Range(0.7f, 1f));
-                patch.transform.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-                patch.GetComponent<Renderer>().material = moss;
+                var branch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                branch.name = "Branch";
+                Object.DestroyImmediate(branch.GetComponent<Collider>());
+                branch.transform.SetParent(tree, false);
+                float yaw = Random.Range(0f, 360f);
+                branch.transform.localPosition = Quaternion.Euler(0f, yaw, 0f) *
+                    new Vector3(0.55f * scale, height * Random.Range(0.62f, 0.78f), 0f);
+                branch.transform.localScale = new Vector3(0.1f * scale, 0.55f * scale, 0.1f * scale);
+                branch.transform.localRotation = Quaternion.Euler(0f, yaw, Random.Range(38f, 58f));
+                branch.GetComponent<Renderer>().material = barkMat;
+            }
+
+            // Canopy: one crown + two offset lobes, each its own green.
+            float baseGreen = Random.value;
+            for (int i = 0; i < 3; i++)
+            {
+                var lobe = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                lobe.name = "Canopy";
+                Object.DestroyImmediate(lobe.GetComponent<Collider>());
+                lobe.transform.SetParent(tree, false);
+
+                float size = (i == 0 ? Random.Range(2.9f, 3.5f) : Random.Range(1.9f, 2.5f)) * scale;
+                var offset = i == 0
+                    ? Vector3.zero
+                    : Quaternion.Euler(0f, Random.Range(0f, 360f), 0f) * new Vector3(size * 0.42f, -0.25f * scale, 0f);
+                lobe.transform.localPosition = new Vector3(0f, height + 0.85f * scale, 0f) + offset;
+                lobe.transform.localScale = new Vector3(size, size * 0.72f, size);
+
+                var green = Color.Lerp(DeepLeaf, SunLeaf, Mathf.Clamp01(baseGreen + Random.Range(-0.18f, 0.18f)));
+                lobe.GetComponent<Renderer>().material = SpellbladeFx.MakeLit(green, 0.15f);
             }
         }
 
-        // -- Glowing mushroom clusters (the biome's night-lights) ----------------------
+        // -- Grass tufts + wildflowers scattered through the meadow ------------------
 
-        private static void BuildMushroomClusters(Transform root)
+        private static void BuildGrassAndFlowers(Transform root, float half)
         {
-            var stemMat = SpellbladeFx.MakeLit(new Color(0.55f, 0.52f, 0.45f), 0.3f);
-            var capMat = SpellbladeFx.MakeEmissive(SporeGlow * 0.35f, SporeGlow, 1.8f);
+            var grassMat = SpellbladeFx.MakeLit(Grass, 0.15f);
+            var grassDry = SpellbladeFx.MakeLit(Color.Lerp(Grass, new Color(0.55f, 0.52f, 0.2f), 0.4f), 0.15f);
 
-            var clusters = new Vector3[]
+            for (int i = 0; i < 44; i++)
             {
-                new(-9.2f, 0f, 10f), new(11f, 0f, -4.2f), new(-11.5f, 0f, -8.2f),
-                new(3.5f, 0f, 12.8f), new(7.8f, 0f, -11.8f),
+                var pos = new Vector3(Random.Range(-half + 2f, half - 2f), 0f, Random.Range(-half + 2f, half - 2f));
+                if (pos.magnitude < 3f) continue; // keep the player spawn readable
+
+                // A tuft: two thin crossed blades, slight lean.
+                var tuft = new GameObject("Grass Tuft").transform;
+                tuft.SetParent(root);
+                tuft.position = pos;
+                tuft.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+                float h = Random.Range(0.28f, 0.55f);
+                for (int b = 0; b < 2; b++)
+                {
+                    var blade = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    blade.name = "Blade";
+                    Object.DestroyImmediate(blade.GetComponent<Collider>()); // never bumps the bake
+                    blade.transform.SetParent(tuft, false);
+                    blade.transform.localPosition = new Vector3(0f, h / 2f, 0f);
+                    blade.transform.localScale = new Vector3(0.05f, h, 0.28f);
+                    blade.transform.localRotation = Quaternion.Euler(Random.Range(-10f, 10f), b * 90f, Random.Range(-8f, 8f));
+                    blade.GetComponent<Renderer>().material = Random.value < 0.7f ? grassMat : grassDry;
+                }
+            }
+
+            // Wildflowers: stem + soft-glow head, sparse.
+            var flowerColors = new[]
+            {
+                new Color(0.95f, 0.9f, 0.75f),  // meadow white
+                new Color(0.95f, 0.75f, 0.3f),  // gold
+                new Color(0.7f, 0.5f, 0.9f),    // violet
             };
+            var stemMat = SpellbladeFx.MakeLit(new Color(0.2f, 0.32f, 0.12f), 0.2f);
+            for (int i = 0; i < 16; i++)
+            {
+                var pos = new Vector3(Random.Range(-half + 2.5f, half - 2.5f), 0f, Random.Range(-half + 2.5f, half - 2.5f));
+                if (pos.magnitude < 3.5f) continue;
+
+                float h = Random.Range(0.3f, 0.5f);
+                var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                stem.name = "Flower Stem";
+                Object.DestroyImmediate(stem.GetComponent<Collider>());
+                stem.transform.SetParent(root);
+                stem.transform.position = pos + Vector3.up * (h / 2f);
+                stem.transform.localScale = new Vector3(0.025f, h / 2f, 0.025f);
+                stem.GetComponent<Renderer>().material = stemMat;
+
+                var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                head.name = "Flower";
+                Object.DestroyImmediate(head.GetComponent<Collider>());
+                head.transform.SetParent(root);
+                head.transform.position = pos + Vector3.up * (h + 0.04f);
+                head.transform.localScale = Vector3.one * Random.Range(0.09f, 0.15f);
+                var color = flowerColors[Random.Range(0, flowerColors.Length)];
+                head.GetComponent<Renderer>().material = SpellbladeFx.MakeEmissive(color * 0.6f, color, 0.9f);
+            }
+        }
+
+        // -- One mossy monolith + mushrooms: the forest remembers the ruin ------------
+
+        private static void BuildNatureClaimedRuin(Transform root)
+        {
+            var stoneMat = SpellbladeFx.MakeLit(new Color(0.24f, 0.25f, 0.20f), 0.3f);
+            var runeMat = SpellbladeFx.MakeEmissive(SporeGlow * 0.4f, SporeGlow, 2f);
+
+            var monolith = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            monolith.name = "Rune Stone";
+            monolith.transform.SetParent(root);
+            monolith.transform.position = new Vector3(-11f, 1.2f, 2.5f);
+            monolith.transform.localScale = new Vector3(0.9f, 2.5f, 0.5f);
+            monolith.transform.rotation = Quaternion.Euler(-4f, 40f, 3f); // sinking into the earth
+            monolith.GetComponent<Renderer>().material = stoneMat;
+
+            for (int i = 0; i < 3; i++)
+            {
+                var rune = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                rune.name = "Rune";
+                Object.DestroyImmediate(rune.GetComponent<Collider>());
+                rune.transform.SetParent(monolith.transform, false);
+                rune.transform.localPosition = new Vector3(0f, 0.28f - i * 0.24f, -0.52f);
+                rune.transform.localScale = new Vector3(0.22f, 0.1f, 0.05f);
+                rune.GetComponent<Renderer>().material = runeMat;
+                rune.AddComponent<RunePulse>();
+            }
+
+            // Glowing mushrooms at the monolith's foot and one treeline root.
+            var capMat = SpellbladeFx.MakeEmissive(SporeGlow * 0.35f, SporeGlow, 1.8f);
+            var stemMat = SpellbladeFx.MakeLit(new Color(0.55f, 0.52f, 0.45f), 0.3f);
+            var clusters = new Vector3[] { new(-10.4f, 0f, 3.4f), new(9.4f, 0f, 5.8f) };
             foreach (var basePos in clusters)
             {
                 for (int i = 0; i < 3; i++)
                 {
-                    float scale = Random.Range(0.14f, 0.3f);
-                    var offset = new Vector3(Random.Range(-0.5f, 0.5f), 0f, Random.Range(-0.5f, 0.5f));
+                    float s = Random.Range(0.12f, 0.26f);
+                    var offset = new Vector3(Random.Range(-0.45f, 0.45f), 0f, Random.Range(-0.45f, 0.45f));
 
                     var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     stem.name = "Mushroom Stem";
                     Object.DestroyImmediate(stem.GetComponent<Collider>());
                     stem.transform.SetParent(root);
-                    stem.transform.position = basePos + offset + Vector3.up * (scale * 0.8f);
-                    stem.transform.localScale = new Vector3(scale * 0.35f, scale * 0.8f, scale * 0.35f);
+                    stem.transform.position = basePos + offset + Vector3.up * (s * 0.8f);
+                    stem.transform.localScale = new Vector3(s * 0.35f, s * 0.8f, s * 0.35f);
                     stem.GetComponent<Renderer>().material = stemMat;
 
                     var cap = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     cap.name = "Mushroom Cap";
                     Object.DestroyImmediate(cap.GetComponent<Collider>());
                     cap.transform.SetParent(root);
-                    cap.transform.position = basePos + offset + Vector3.up * (scale * 1.7f);
-                    cap.transform.localScale = new Vector3(scale * 1.4f, scale * 0.8f, scale * 1.4f);
+                    cap.transform.position = basePos + offset + Vector3.up * (s * 1.7f);
+                    cap.transform.localScale = new Vector3(s * 1.4f, s * 0.8f, s * 1.4f);
                     cap.GetComponent<Renderer>().material = capMat;
                 }
 
-                // One soft light per cluster — cheap, and the gloom-to-glow contrast sells it.
                 var light = new GameObject("Mushroom Glow").AddComponent<Light>();
                 light.transform.SetParent(root);
                 light.transform.position = basePos + Vector3.up * 0.6f;
                 light.type = LightType.Point;
                 light.color = SporeGlow;
-                light.intensity = 1.6f;
-                light.range = 4.5f;
+                light.intensity = 1.4f;
+                light.range = 4f;
             }
         }
 

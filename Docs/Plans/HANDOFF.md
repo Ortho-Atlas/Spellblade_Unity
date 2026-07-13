@@ -168,4 +168,6 @@
 
 **Verified:** batchmode compile after the map wiring — 0 errors, 0 warnings.
 
+**Update (same session) — Verdant v2, "trees and open in a field in nature" (Ryan):** the walled-courtyard look is gone for earth. New `BiomeStyle.openField` flag: open-field biomes skip perimeter walls AND interior pillars in the bootstrap. `VerdantBiomeArt` rebuilt as an open sunlit meadow: two staggered treeline rings (~32 procedural trees — tapered trunk with collider, angled branches, 3 canopy lobes, per-tree random height/lean/green; canopy bottoms kept ~3m up so the bake never reads them as ceilings), 4 field trees as bolt cover, ~44 grass tufts + 16 glowing wildflowers, one nature-claimed rune monolith + mushroom clusters, spores unchanged. **Boundary = NavMesh, not geometry:** a 3× outer grass plane carries `NavMeshModifier` area NotWalkable — agents stay in the meadow, the eye wanders into the trees. Mood opened up: sun 1.1 warm gold, fog 0.010 sunlit haze, full saturation. Shadow untouched (openField=false). Batchmode verified — 0 errors, 0 warnings.
+
 ---

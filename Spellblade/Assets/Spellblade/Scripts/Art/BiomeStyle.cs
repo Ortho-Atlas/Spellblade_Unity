@@ -26,6 +26,11 @@ namespace Spellblade
         public Color pillarColor;
         public Color cameraBackground;
 
+        /// <summary>Open-field biomes skip the perimeter walls and interior pillars —
+        /// the dressing provides the visual boundary (treeline) and the NavMesh
+        /// provides the real one (dressing marks the outside NotWalkable).</summary>
+        public bool openField;
+
         // Post grade
         public Color postFilter;
         public float postSaturation;
@@ -70,28 +75,29 @@ namespace Spellblade
             buildAmbientParticles = SpellbladeParticles.GroundMist,
         };
 
-        /// <summary>The Verdant Deep — earth magic. Ancient forest floor swallowing
-        /// old ruin: warm gold shafts through a high canopy, moss over everything,
-        /// spores drifting in the light. Alive where the Shadow Reach is mourning.</summary>
+        /// <summary>The Verdant Deep — earth magic (v2 per Ryan): an open sunlit
+        /// meadow ringed by forest. Bright, airy, alive — grass and wildflowers
+        /// under open sky, the treeline holding the edge of the world.</summary>
         public static readonly BiomeStyle Verdant = new()
         {
-            ambient = new Color(0.15f, 0.18f, 0.13f),
-            fogColor = new Color(0.30f, 0.38f, 0.26f), // luminous green haze
-            fogDensity = 0.014f,                        // thinner — light gets in here
-            sunColor = new Color(1.00f, 0.90f, 0.70f), // late-afternoon gold
-            sunIntensity = 0.95f,
-            sunAngles = new Vector3(52f, -38f, 0f),
+            ambient = new Color(0.21f, 0.24f, 0.17f),  // open-sky bounce light
+            fogColor = new Color(0.42f, 0.52f, 0.36f), // sunlit green distance haze
+            fogDensity = 0.010f,                        // thin — the meadow breathes
+            sunColor = new Color(1.00f, 0.93f, 0.74f), // late-afternoon gold
+            sunIntensity = 1.1f,
+            sunAngles = new Vector3(50f, -38f, 0f),
 
-            groundColor = new Color(0.13f, 0.115f, 0.075f), // rich loam
-            groundSmoothness = 0.35f,                        // dry earth, not wet stone
-            wallColor = new Color(0.13f, 0.15f, 0.11f),      // moss-swallowed stone
+            groundColor = new Color(0.14f, 0.20f, 0.09f), // living grass
+            groundSmoothness = 0.25f,                      // dry meadow, not wet stone
+            wallColor = new Color(0.13f, 0.15f, 0.11f),    // (corridor use — mossy stone)
             pillarColor = new Color(0.16f, 0.18f, 0.13f),
-            cameraBackground = new Color(0.03f, 0.05f, 0.03f),
+            cameraBackground = new Color(0.05f, 0.08f, 0.04f),
+            openField = true, // treeline is the boundary, not walls
 
-            postFilter = new Color(1.00f, 0.98f, 0.88f), // warm, faintly golden
-            postSaturation = -4f,                         // the green is allowed to live
-            postContrast = 10f,
-            vignetteColor = new Color(0.02f, 0.035f, 0.015f),
+            postFilter = new Color(1.00f, 0.99f, 0.90f), // warm, faintly golden
+            postSaturation = 0f,                          // the meadow keeps its color
+            postContrast = 8f,
+            vignetteColor = new Color(0.02f, 0.04f, 0.015f),
 
             buildDressing = VerdantBiomeArt.Build,
             buildAmbientParticles = VerdantBiomeArt.SporeMotes,

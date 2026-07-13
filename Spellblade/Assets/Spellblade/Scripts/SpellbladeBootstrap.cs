@@ -111,28 +111,31 @@ namespace Spellblade
             ground.GetComponent<Renderer>().material =
                 SpellbladeFx.MakeLit(_style.groundColor, _style.groundSmoothness); // [BIOME]
 
-            // Perimeter walls, palette per biome.
-            var wallMat = SpellbladeFx.MakeLit(_style.wallColor, 0.2f); // [BIOME]
-            float half = arenaSize / 2f;
-            CreateWall(arena, wallMat, new Vector3(0, wallHeight / 2f, half), new Vector3(arenaSize + 1f, wallHeight, 1f));
-            CreateWall(arena, wallMat, new Vector3(0, wallHeight / 2f, -half), new Vector3(arenaSize + 1f, wallHeight, 1f));
-            CreateWall(arena, wallMat, new Vector3(half, wallHeight / 2f, 0), new Vector3(1f, wallHeight, arenaSize + 1f));
-            CreateWall(arena, wallMat, new Vector3(-half, wallHeight / 2f, 0), new Vector3(1f, wallHeight, arenaSize + 1f));
-
-            // Interior pillars — pushed to the arena edges so the corridor between
-            // the spawn and the cultist arc has CLEAR firing lanes (Ryan's call).
-            // They still give the NavMesh something to path around at the flanks.
-            var pillarMat = SpellbladeFx.MakeLit(_style.pillarColor, 0.25f); // [BIOME]
-            var obstacles = new (Vector3 pos, Vector3 scale)[]
+            if (!_style.openField) // [BIOME] open-field biomes: treeline + NavMesh bound the arena, not stone
             {
-                (new Vector3(-11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3( 11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3(-11.5f, 2f, 6f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3( 11.5f, 2f, 6f), new Vector3(1.4f, 4f, 1.4f)),
-                (new Vector3( 0f, 1.5f, -11.5f), new Vector3(6f, 3f, 1f)), // broken wall, south of spawn
-            };
-            foreach (var (pos, scale) in obstacles)
-                CreateWall(arena, pillarMat, pos, scale, "Pillar");
+                // Perimeter walls, palette per biome.
+                var wallMat = SpellbladeFx.MakeLit(_style.wallColor, 0.2f); // [BIOME]
+                float half = arenaSize / 2f;
+                CreateWall(arena, wallMat, new Vector3(0, wallHeight / 2f, half), new Vector3(arenaSize + 1f, wallHeight, 1f));
+                CreateWall(arena, wallMat, new Vector3(0, wallHeight / 2f, -half), new Vector3(arenaSize + 1f, wallHeight, 1f));
+                CreateWall(arena, wallMat, new Vector3(half, wallHeight / 2f, 0), new Vector3(1f, wallHeight, arenaSize + 1f));
+                CreateWall(arena, wallMat, new Vector3(-half, wallHeight / 2f, 0), new Vector3(1f, wallHeight, arenaSize + 1f));
+
+                // Interior pillars — pushed to the arena edges so the corridor between
+                // the spawn and the cultist arc has CLEAR firing lanes (Ryan's call).
+                // They still give the NavMesh something to path around at the flanks.
+                var pillarMat = SpellbladeFx.MakeLit(_style.pillarColor, 0.25f); // [BIOME]
+                var obstacles = new (Vector3 pos, Vector3 scale)[]
+                {
+                    (new Vector3(-11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
+                    (new Vector3( 11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
+                    (new Vector3(-11.5f, 2f, 6f), new Vector3(1.4f, 4f, 1.4f)),
+                    (new Vector3( 11.5f, 2f, 6f), new Vector3(1.4f, 4f, 1.4f)),
+                    (new Vector3( 0f, 1.5f, -11.5f), new Vector3(6f, 3f, 1f)), // broken wall, south of spawn
+                };
+                foreach (var (pos, scale) in obstacles)
+                    CreateWall(arena, pillarMat, pos, scale, "Pillar");
+            }
 
             // [BIOME] Region set dressing (spires + mist for Shadow, roots + spores
             // for Verdant). Built before the NavMesh bake so big pieces block pathing.
