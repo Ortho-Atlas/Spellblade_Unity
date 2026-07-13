@@ -33,9 +33,9 @@ namespace Spellblade
         public float cameraDistance = 8f;
         [Range(20f, 80f)] public float cameraTilt = 52f;
 
-        [Header("Shadow Realm Mood")]
-        [Range(0f, 0.1f)] public float fogDensity = 0.028f;
-        public float moonIntensity = 0.55f;
+        [Header("Biome")] // [BIOME] mood/palette/dressing now come from BiomeStyle
+        [Tooltip("Playground preview only: biome to build when no arena node is loaded (\"shadow\", \"verdant\"). Arenas use their node's region.")]
+        public string playgroundBiome = "shadow";
 
         [Header("Dummies")]
         public int dummyCount = 5;
@@ -47,11 +47,16 @@ namespace Spellblade
         public float manaRegenPerSecond = 9f;
 
         private Transform _player;
+        private BiomeStyle _style; // [BIOME]
 
         private void Start()
         {
             bool traversal = GameSession.CurrentNode != null &&
                              GameSession.CurrentNode.objective == ObjectiveType.Traversal; // [PHASE2-04]
+
+            // [BIOME] Arena nodes bring their region's look; playground previews via the field.
+            _style = BiomeStyle.For(GameSession.CurrentNode != null
+                ? GameSession.CurrentNode.regionId : playgroundBiome);
 
             SetMood();
             if (traversal) TraversalArena.Build(wallHeight); else BuildArena(); // [PHASE2-04] corridor layout for Traversal nodes
@@ -71,27 +76,25 @@ namespace Spellblade
 
         private void SetMood()
         {
-            // Shadow Biome lore: "Scotland gloom" — overcast, ancient, war-worn.
-            // Flat diffuse light under heavy low clouds, not supernatural blackness.
+            // [BIOME] Style-driven: Shadow = Scotland gloom, Verdant = gold through canopy.
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.11f, 0.12f, 0.13f);
+            RenderSettings.ambientLight = _style.ambient;
 
             RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.ExponentialSquared;
-            RenderSettings.fogColor = new Color(0.10f, 0.115f, 0.11f); // gray-green mist
-            RenderSettings.fogDensity = fogDensity;
+            RenderSettings.fogColor = _style.fogColor;
+            RenderSettings.fogDensity = _style.fogDensity;
 
             // Silence any lights the scene came with — the mood is ours.
             foreach (var light in FindObjectsByType<Light>())
                 light.enabled = false;
 
-            // Cold silver skylight — the ambient light of a sky a few hours from rain.
-            var sky = new GameObject("Overcast Skylight").AddComponent<Light>();
+            var sky = new GameObject("Biome Skylight").AddComponent<Light>();
             sky.type = LightType.Directional;
-            sky.color = new Color(0.72f, 0.76f, 0.82f);
-            sky.intensity = moonIntensity;
+            sky.color = _style.sunColor;
+            sky.intensity = _style.sunIntensity;
             sky.shadows = LightShadows.Soft;
-            sky.transform.rotation = Quaternion.Euler(58f, -25f, 0f);
+            sky.transform.rotation = Quaternion.Euler(_style.sunAngles);
         }
 
         // ---------------------------------------------------------------- Arena
@@ -106,10 +109,10 @@ namespace Spellblade
             ground.transform.SetParent(arena);
             ground.transform.localScale = Vector3.one * (arenaSize / 10f); // plane is 10x10 at scale 1
             ground.GetComponent<Renderer>().material =
-                SpellbladeFx.MakeLit(new Color(0.085f, 0.125f, 0.09f), 0.55f);
+                SpellbladeFx.MakeLit(_style.groundColor, _style.groundSmoothness); // [BIOME]
 
-            // Perimeter walls: weathered charcoal stone.
-            var wallMat = SpellbladeFx.MakeLit(new Color(0.115f, 0.115f, 0.135f), 0.2f);
+            // Perimeter walls, palette per biome.
+            var wallMat = SpellbladeFx.MakeLit(_style.wallColor, 0.2f); // [BIOME]
             float half = arenaSize / 2f;
             CreateWall(arena, wallMat, new Vector3(0, wallHeight / 2f, half), new Vector3(arenaSize + 1f, wallHeight, 1f));
             CreateWall(arena, wallMat, new Vector3(0, wallHeight / 2f, -half), new Vector3(arenaSize + 1f, wallHeight, 1f));
@@ -119,7 +122,7 @@ namespace Spellblade
             // Interior pillars — pushed to the arena edges so the corridor between
             // the spawn and the cultist arc has CLEAR firing lanes (Ryan's call).
             // They still give the NavMesh something to path around at the flanks.
-            var pillarMat = SpellbladeFx.MakeLit(new Color(0.15f, 0.15f, 0.17f), 0.25f);
+            var pillarMat = SpellbladeFx.MakeLit(_style.pillarColor, 0.25f); // [BIOME]
             var obstacles = new (Vector3 pos, Vector3 scale)[]
             {
                 (new Vector3(-11f, 2f, -7f), new Vector3(1.4f, 4f, 1.4f)),
@@ -131,9 +134,9 @@ namespace Spellblade
             foreach (var (pos, scale) in obstacles)
                 CreateWall(arena, pillarMat, pos, scale, "Pillar");
 
-            // Shadow Biome dressing: spires, arches, iron gate, standing stones,
-            // rubble, ground mist. Built before the NavMesh bake so stone blocks pathing.
-            ShadowBiomeArt.Build(arenaSize);
+            // [BIOME] Region set dressing (spires + mist for Shadow, roots + spores
+            // for Verdant). Built before the NavMesh bake so big pieces block pathing.
+            _style.buildDressing(arenaSize);
         }
 
         private void CreateWall(Transform parent, Material mat, Vector3 pos, Vector3 scale, string name = "Wall")
@@ -290,7 +293,7 @@ namespace Spellblade
             }
 
             cam.clearFlags = CameraClearFlags.SolidColor;
-            cam.backgroundColor = new Color(0.02f, 0.02f, 0.05f);
+            cam.backgroundColor = _style.cameraBackground; // [BIOME]
 
             var follow = cam.GetComponent<MobaCamera>();
             if (follow == null) follow = cam.gameObject.AddComponent<MobaCamera>();
@@ -315,15 +318,15 @@ namespace Spellblade
             var vignette = profile.Add<Vignette>();
             vignette.intensity.Override(0.38f);
             vignette.smoothness.Override(0.45f);
-            vignette.color.Override(new Color(0.01f, 0.01f, 0.03f));
+            vignette.color.Override(_style.vignetteColor); // [BIOME]
 
             var colors = profile.Add<ColorAdjustments>();
             colors.postExposure.Override(0.15f);
-            colors.contrast.Override(16f);                                   // heavy but not void-black
-            colors.saturation.Override(-22f);                                // "color pulled out by centuries of overcast"
-            colors.colorFilter.Override(new Color(0.86f, 0.92f, 0.94f));     // cold silver-gray cast
+            colors.contrast.Override(_style.postContrast);     // [BIOME]
+            colors.saturation.Override(_style.postSaturation); // [BIOME]
+            colors.colorFilter.Override(_style.postFilter);    // [BIOME]
 
-            var volumeGo = new GameObject("Shadow Realm Volume");
+            var volumeGo = new GameObject("Biome Volume");
             var volume = volumeGo.AddComponent<Volume>();
             volume.isGlobal = true;
             volume.profile = profile;

@@ -27,6 +27,24 @@ namespace Spellblade.EditorTools
             Debug.Log($"[Spellblade] Playground scene created at {ScenePath} — press Play.");
         }
 
+        // ------------------------------------------------------------ [BIOME]
+
+        private const string VerdantScenePath = "Assets/Spellblade/Spellblade Playground (Verdant).unity";
+
+        /// <summary>One-click Verdant Deep preview: a playground scene whose
+        /// bootstrap is preset to the earth biome. Press Play and stand in it.</summary>
+        [MenuItem("Spellblade/Create Verdant Playground Scene")]
+        public static void CreateVerdantPlaygroundScene()
+        {
+            if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var bootstrapGo = new GameObject("Spellblade Bootstrap");
+            bootstrapGo.AddComponent<SpellbladeBootstrap>().playgroundBiome = "verdant";
+            EditorSceneManager.SaveScene(scene, VerdantScenePath);
+            Debug.Log($"[Spellblade] Verdant playground created at {VerdantScenePath} — press Play.");
+        }
+
         // ------------------------------------------------------------ [PHASE2-03]
 
         private const string WorldMapScenePath = "Assets/Scenes/WorldMap.unity";

@@ -145,3 +145,18 @@
 **Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings. Layout numbers are reference-resolution reasoning, not eyeballed — worth a look in Play mode.
 
 ---
+
+## Post-Phase-2 — Biome style system + The Verdant Deep (preview only) · `phase2/verdant-biome` · 2026-07-12 (Ryan's request)
+
+**Ask:** arenas shouldn't all be Shadow gloom — show the earth-magic biome. **Ryan's call: preview only** — no map nodes, region stays locked until the lore brain-dump settles regions/elements.
+
+**Shipped:**
+- **`BiomeStyle`** (`Scripts/Art/`) — arena look is now data: mood lighting, fog, sun, ground/wall/pillar palette, camera background, post grade (filter/saturation/contrast/vignette), and a dressing builder, resolved per `regionId` with Shadow as the fallback. `SpellbladeBootstrap` reads it everywhere it used to hardcode Shadow (all marked `[BIOME]`); the `fogDensity`/`moonIntensity` public fields were absorbed into the style. **Arena nodes automatically get their region's style** — when Frost or any future region gets a kit, it's one new `BiomeStyle` entry + one dressing class, zero bootstrap changes.
+- **`VerdantBiomeArt`** — the earth biome: warm gold sun through canopy haze, loam ground with moss patches, mossy boulders and fallen logs (pathing-blocking), a great root arch, rune stones pulsing green (reuses `RunePulse`), glowing mushroom clusters with soft point lights, and rising spore motes (the Verdant answer to the Shadow ground mist, `gravityModifier` negative — spores rise, mist sinks).
+- **Preview access:** menu **Spellblade → Create Verdant Playground Scene** → `Assets/Spellblade/Spellblade Playground (Verdant).unity` (generated + committed, ready to open) — a playground whose bootstrap has `playgroundBiome = "verdant"`. The field is a public string on the bootstrap, so any biome can be previewed from the Inspector.
+
+**Explicitly NOT done (deliberate):** no Verdant map nodes, no unlock wiring, no fifth "Earth" element — the counter-wheel stays Umbra/Frost/Storm/Blood. Verdant enemies (when they exist) would use mixed attunements until the lore pass decides whether Earth joins the wheel. `TraversalArena` (the corridor) is still Shadow-styled — restyle it when a non-Shadow region actually gets a Traversal node.
+
+**Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings; Verdant preview scene generated headlessly and committed.
+
+---
