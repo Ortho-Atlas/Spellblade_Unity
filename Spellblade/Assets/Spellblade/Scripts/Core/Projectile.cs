@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Spellblade
@@ -20,6 +21,12 @@ namespace Spellblade
         private Vector3 _direction;
         private float _traveled;
         private ProjectileTargets _targets; // [PHASE2-04]
+
+        // [PHASE2-02] Chain state (Chain Spark): jumps remaining, decayed damage,
+        // and every root already zapped this chain (passed through, never re-hit).
+        private int _chainsLeft;
+        private float _chainMult = 1f;
+        private HashSet<Transform> _chainHits;
 
         public static Projectile Spawn(SpellSO spell, Vector3 origin, Vector3 direction, Transform owner,
                                        ProjectileTargets targets = ProjectileTargets.Everyone) // [PHASE2-04] default = untouched SpellCaster behavior
@@ -55,6 +62,8 @@ namespace Spellblade
             p._owner = owner;
             p._direction = direction.normalized;
             p._targets = targets; // [PHASE2-04]
+            p._chainsLeft = spell.chainCount; // [PHASE2-02]
+            if (spell.chainCount > 0) p._chainHits = new HashSet<Transform>();
             return p;
         }
 
@@ -80,17 +89,29 @@ namespace Spellblade
                     hit.collider.GetComponentInParent<PlayerLife>() == null)
                     continue;
 
+                // [PHASE2-02] Chain segments pass through targets already zapped.
+                if (health != null && _chainHits != null && _chainHits.Contains(health.transform.root))
+                    continue;
+
                 if (health != null && !health.IsDead)
                 {
                     // Counter-wheel: scale damage by the target's elemental attunement.
                     var affinity = hit.collider.GetComponentInParent<ElementalAffinity>();
                     float mod = affinity != null ? affinity.ModifierFor(_spell.element) : 1f;
 
-                    float damage = _spell.damage * mod;
+                    float damage = _spell.damage * _chainMult * mod; // [PHASE2-02] chain decay
                     health.TakeDamage(damage);
                     health.ApplyDot(_spell.dotDamagePerSecond * mod, _spell.dotDuration);
                     health.ApplySlow(_spell.slowPercent, _spell.slowDuration);
                     DamageNumber.Spawn(hit.point + Vector3.up * 1.1f, damage, mod);
+
+                    // [PHASE2-02] Leech Bolt: a cut of damage dealt flows back as HP.
+                    if (_spell.lifestealPercent > 0f && _owner != null)
+                        _owner.root.GetComponent<Health>()?.Heal(damage * _spell.lifestealPercent);
+
+                    // [PHASE2-02] Chain Spark: arc to the nearest fresh target in range.
+                    if (_chainsLeft > 0) TryChainFrom(hit.point, health.transform.root);
+
                     Impact(hit.point);
                     return;
                 }
@@ -114,6 +135,42 @@ namespace Spellblade
             SpellbladeFx.Flash(point, _spell.themeColor, 0.9f);
             SpellbladeParticles.Burst(point, _spell.themeColor, 30, 7f);
             Destroy(gameObject);
+        }
+
+        /// <summary>[PHASE2-02] Spawn the next chain segment toward the nearest
+        /// living, not-yet-zapped Health within chainRadius of the impact.</summary>
+        private void TryChainFrom(Vector3 impactPoint, Transform justHitRoot)
+        {
+            Transform bestRoot = null;
+            Health bestHealth = null;
+            float bestDist = float.MaxValue;
+
+            foreach (var candidate in Physics.OverlapSphere(impactPoint, _spell.chainRadius,
+                                                            ~0, QueryTriggerInteraction.Ignore))
+            {
+                var health = candidate.GetComponentInParent<Health>();
+                if (health == null || health.IsDead) continue;
+
+                var root = health.transform.root;
+                if (root == justHitRoot || _chainHits.Contains(root)) continue;
+                if (_owner != null && root == _owner.root) continue;
+                if (_targets == ProjectileTargets.PlayerOnly &&
+                    candidate.GetComponentInParent<PlayerLife>() == null) continue;
+                if (_targets == ProjectileTargets.Everyone &&
+                    candidate.GetComponentInParent<PlayerLife>() != null) continue; // player arcs never bounce home
+
+                float dist = (root.position - impactPoint).sqrMagnitude;
+                if (dist < bestDist) { bestDist = dist; bestRoot = root; bestHealth = health; }
+            }
+
+            if (bestRoot == null) return;
+
+            var target = bestHealth.transform.position + Vector3.up * 1.1f;
+            var dir = target - impactPoint;
+            var segment = Spawn(_spell, impactPoint + dir.normalized * 0.3f, dir, _owner, _targets);
+            segment._chainsLeft = _chainsLeft - 1;
+            segment._chainMult = _chainMult * 0.85f; // -15% per jump
+            segment._chainHits = new HashSet<Transform>(_chainHits) { justHitRoot };
         }
     }
 }

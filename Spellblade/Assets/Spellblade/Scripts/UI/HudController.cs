@@ -4,8 +4,10 @@ using UnityEngine.UI;
 namespace Spellblade
 {
     /// <summary>
-    /// Runtime-built HUD: a 4-slot ability bar (one slot per discipline, active
-    /// one highlighted gold, cooldown drain overlay + countdown) and a mana bar.
+    /// Runtime-built HUD (Plan 02 layout): a slim discipline indicator (4 dots
+    /// in element colors, active one lit), mana bar, HP bar, and the radial
+    /// SpellWheelUI bottom-right. Cooldown display lives on the wheel now —
+    /// the old Q/W/E/R ability bar is gone with the keys themselves.
     /// Everything is constructed in code — no prefabs, no canvas setup.
     /// </summary>
     public class HudController : MonoBehaviour
@@ -14,19 +16,12 @@ namespace Spellblade
         private ManaPool _mana;
         private Font _font;
 
-        private class Slot
-        {
-            public Image highlight;   // gold ring shown when active
-            public Image inner;       // discipline color
-            public Image cooldownFill; // dark overlay that drains as cooldown recovers
-            public Text cooldownText;
-        }
-
-        private readonly System.Collections.Generic.List<Slot> _slots = new();
         private Image _manaFill;
         private Text _manaText;
         private Health _playerHealth; // [PHASE2-04]
         private Image _healthFill;    // [PHASE2-04]
+
+        private readonly System.Collections.Generic.List<Image> _disciplineDots = new(); // [PHASE2-02]
 
         private static Sprite _whiteSprite;
         private static Sprite WhiteSprite
@@ -62,64 +57,33 @@ namespace Spellblade
             hud._mana = mana;
             hud._font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             hud._playerHealth = playerHealth; // [PHASE2-04]
-            hud.BuildAbilityBar();
+            hud.BuildDisciplineDots();        // [PHASE2-02] replaces the Q/W/E/R bar
             hud.BuildManaBar();
             if (playerHealth != null) hud.BuildHealthBar(); // [PHASE2-04]
+            SpellWheelUI.Build(go.transform, caster);       // [PHASE2-02]
             return hud;
         }
 
         // -- Construction ------------------------------------------------------
 
-        private void BuildAbilityBar()
+        /// <summary>Four small element-colored dots above the mana bar; the active
+        /// discipline's dot glows full-color and slightly larger. [PHASE2-02]</summary>
+        private void BuildDisciplineDots()
         {
-            var bar = MakeRect("Ability Bar", transform,
+            var bar = MakeRect("Discipline Dots", transform,
                 anchorMin: new Vector2(0.5f, 0f), anchorMax: new Vector2(0.5f, 0f),
-                pivot: new Vector2(0.5f, 0f), size: new Vector2(420, 100), anchoredPos: new Vector2(0, 52));
+                pivot: new Vector2(0.5f, 0f), size: new Vector2(140, 24), anchoredPos: new Vector2(0, 50));
 
             var disciplines = _caster.Disciplines;
-            const float slotSize = 84f, spacing = 100f;
+            const float spacing = 30f;
             float startX = -spacing * (disciplines.Count - 1) / 2f;
 
             for (int i = 0; i < disciplines.Count; i++)
             {
-                var d = disciplines[i];
-                var slot = new Slot();
-                var pos = new Vector2(startX + i * spacing, 0f);
-
-                // Gold highlight ring (slightly larger, behind everything).
-                slot.highlight = MakeImage("Highlight", bar, pos, new Vector2(slotSize + 10, slotSize + 10),
-                                           new Color(0.91f, 0.77f, 0.35f));
-
-                // Dark slot frame.
-                MakeImage("Frame", bar, pos, new Vector2(slotSize, slotSize),
-                          new Color(0.06f, 0.06f, 0.10f, 0.95f));
-
-                // Discipline color panel.
-                slot.inner = MakeImage("Color", bar, pos, new Vector2(slotSize - 10, slotSize - 10),
-                                       new Color(d.themeColor.r, d.themeColor.g, d.themeColor.b, 0.85f));
-
-                // Key label (Q/W/E/R) top-left.
-                MakeText(d.keyLabel, bar, pos + new Vector2(-slotSize / 2f + 13, slotSize / 2f - 13),
-                         new Vector2(30, 24), 20, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
-
-                // Spell name under the slot.
-                MakeText(d.Primary != null ? d.Primary.displayName : "—", bar,
-                         pos + new Vector2(0, -slotSize / 2f - 14), new Vector2(110, 20),
-                         12, FontStyle.Normal, new Color(0.8f, 0.8f, 0.9f), TextAnchor.MiddleCenter);
-
-                // Cooldown overlay: filled image that drains top-down as the spell recovers.
-                slot.cooldownFill = MakeImage("Cooldown", bar, pos, new Vector2(slotSize - 10, slotSize - 10),
-                                              new Color(0f, 0f, 0f, 0.78f));
-                slot.cooldownFill.sprite = WhiteSprite;
-                slot.cooldownFill.type = Image.Type.Filled;
-                slot.cooldownFill.fillMethod = Image.FillMethod.Vertical;
-                slot.cooldownFill.fillOrigin = (int)Image.OriginVertical.Top;
-
-                // Countdown number.
-                slot.cooldownText = MakeText("", bar, pos, new Vector2(60, 30),
-                                             24, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
-
-                _slots.Add(slot);
+                var dot = MakeImage("Dot", bar, new Vector2(startX + i * spacing, 0f),
+                                    new Vector2(14f, 14f), disciplines[i].themeColor);
+                dot.sprite = WorldMapBootstrap.SoftCircle;
+                _disciplineDots.Add(dot);
             }
         }
 
@@ -141,8 +105,7 @@ namespace Spellblade
                                  12, FontStyle.Bold, new Color(0.85f, 0.9f, 1f), TextAnchor.MiddleCenter);
         }
 
-        // [PHASE2-04] Slim HP bar paired with the mana bar (just beneath it — the
-        // slot above is occupied by the ability bar's spell-name labels).
+        // [PHASE2-04] Slim HP bar paired with the mana bar (just beneath it).
         private void BuildHealthBar()
         {
             var root = MakeRect("Health Bar", transform,
@@ -163,17 +126,15 @@ namespace Spellblade
         private void Update()
         {
             var disciplines = _caster.Disciplines;
-            for (int i = 0; i < _slots.Count && i < disciplines.Count; i++)
+            for (int i = 0; i < _disciplineDots.Count && i < disciplines.Count; i++) // [PHASE2-02]
             {
-                var slot = _slots[i];
-                var spell = disciplines[i].Primary;
-
-                slot.highlight.enabled = i == _caster.ActiveIndex;
-
-                float remaining = _caster.CooldownRemaining(spell);
-                float total = spell != null ? Mathf.Max(spell.cooldown, 0.01f) : 1f;
-                slot.cooldownFill.fillAmount = Mathf.Clamp01(remaining / total);
-                slot.cooldownText.text = remaining > 0.05f ? remaining.ToString("0.0") : "";
+                bool active = i == _caster.ActiveIndex;
+                var theme = disciplines[i].themeColor;
+                _disciplineDots[i].color = active
+                    ? theme
+                    : new Color(theme.r * 0.35f, theme.g * 0.35f, theme.b * 0.35f, 0.7f);
+                _disciplineDots[i].rectTransform.sizeDelta = active
+                    ? new Vector2(19f, 19f) : new Vector2(13f, 13f);
             }
 
             if (_mana != null)

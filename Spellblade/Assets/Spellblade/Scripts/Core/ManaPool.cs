@@ -25,5 +25,12 @@ namespace Spellblade
             Current -= amount;
             return true;
         }
+
+        /// <summary>Instant mana refund (Crimson Pact). [PHASE2-02]</summary>
+        public void Restore(float amount)
+        {
+            if (amount <= 0f) return;
+            Current = Mathf.Min(maxMana, Current + amount);
+        }
     }
 }

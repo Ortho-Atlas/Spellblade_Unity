@@ -21,6 +21,9 @@ namespace Spellblade
         [Tooltip("Degrees per second the character turns toward its movement direction.")]
         public float turnSpeed = 720f;
 
+        /// <summary>Haste hook (Zephyr Rush and future buffs) — multiplies move speed. [PHASE2-02]</summary>
+        public float SpeedMultiplier { get; set; } = 1f;
+
         private NavMeshAgent _agent;
         private Animator _animator;
         private Vector3 _lastPosition;
@@ -58,7 +61,7 @@ namespace Spellblade
 
             if (dir.sqrMagnitude > 0.0001f)
             {
-                _agent.Move(dir * (_agent.speed * Time.deltaTime));
+                _agent.Move(dir * (_agent.speed * SpeedMultiplier * Time.deltaTime)); // [PHASE2-02] haste-aware
 
                 // Smooth-turn toward where we're headed (~720°/s).
                 var look = Quaternion.LookRotation(dir);

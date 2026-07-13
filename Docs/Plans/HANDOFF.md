@@ -77,3 +77,31 @@
 **For Plan 02 (wheel):** nothing here claims RMB or scroll. **For Plan 05:** `MeleeStrike.damageMultiplier` static hook still waiting; enemies don't yet award essence/shards — that's your earning hook, `EnemyBase.OnKilled` is the place.
 
 ---
+
+## Plan 02 — Radial Spell Wheel + Full Rosters · `phase2/wheel` · 2026-07-12
+
+**Input scheme is live:** Q/W/E/R discipline keys deleted from `SpellCaster` (W is pure movement). Scroll cycles disciplines both directions any time (accumulator handles both notched ±120 mice and trackpad micro-deltas), firing `SpellCaster.DisciplineChanged`. Hold RMB → `SpellWheelUI` (built by `HudController.Build`) scales up bottom-right (80ms ease from a 90px idle compass to 260px); drag past an 18px dead zone highlights the sector under the drag vector; release selects via `caster.SelectSpell` (dead-zone release = no change; locked slots refused). LMB casts `ActiveSpell`. Per-discipline selection is remembered (`_activeSpellIndex[]`).
+
+**Rosters:** all 16 spells from the plan table, built in `CreateDisciplines` (`[PHASE2-02]`) with stable spellIds `umbra_1..blood_4`. New mechanics, each in its intended home:
+- `SpellSO` — new data fields per the plan + TWO fields the plan's list omitted but its spell specs require: `aoeDelaySeconds` (Thunderhead's 0.8s telegraph) and `sustainHealPerSecond` (Blood Nova's 3/s). Pure data, defaults off.
+- `AimType.SelfNova` + `AimType.Blink` added. Blink resolves its destination BEFORE any cost is paid (a blocked blink refunds nothing because it spends nothing), wall-clamps by raycast (passes through living things — blinking through a Husk works), then NavMesh-samples. Origin shadow-burst deals the 12 dmg.
+- `Projectile` — chain support (`chainCount`/`chainRadius`, −15% damage per jump, already-zapped roots are passed through, player arcs never bounce back to the player) + `lifestealPercent` heals the owner per hit. Enemy `PlayerOnly` bolts unaffected.
+- `Health` — `Heal`, `SpendHealth` (shield-bypassing, never lethal — Crimson Pact is refused at ≤16 HP), `AddShield(amount, duration)` absorbing before HP (refresh, not stack). `ManaPool.Restore`. `WasdController.SpeedMultiplier` hook (Zephyr ×1.45).
+- `Scripts/Player/SpellEffects.cs` — `HasteEffect` (refreshing timer + wind wisps), `WardVisual` (icy bubble lives while the shield holds), `BloodSustain` (heals while ≥1 DoT-afflicted target lives).
+- `Scripts/Core/ProgressionGate.cs` — per plan: playground unlocks all; arena unlocks `*_1`; PLUS it already honors `SaveSystem.Data.unlockedSpells`, so **Plan 05 likely doesn't need to touch this file — just write ids into the save**.
+- Thunderhead reuses Plan 04's `TelegraphRing` for its ground telegraph.
+
+**HUD:** ability bar replaced by 4 element-colored discipline dots (active enlarged + lit) above the mana bar; HP bar unchanged; cooldown sweeps render as radial drains inside each wheel sector. `HudController.Build` signature unchanged.
+
+**Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings. No Play-mode run (headless; Ryan's Wave-1 play test predates this branch). The wheel is the most feel-sensitive thing built so far — dead-zone size, ease timing, sector readability all warrant an in-editor pass.
+
+**Deviations / notes:**
+1. Two extra SpellSO data fields beyond the plan's list (see above) — required by the plan's own spell table.
+2. Wheel sectors are radial-filled soft-disc sprites (pie wedges with feathered edges + gaps), not donut meshes — the sanctioned "4 rotated radial-filled Images" option.
+3. `Discipline.keyLabel` now holds "1".."4" (labels are vestigial — nothing binds keys to disciplines anymore).
+4. Wheel scale/spin animations use unscaled per-frame lerps on the HUD overlay canvas; no EventSystem needed (input read directly from `Mouse.current`, all wheel graphics non-raycast).
+5. `SpellCaster.MeleeAttack()` stub kept (API stability) though real melee is Plan 01's `MeleeStrike`.
+
+**For Plan 05:** unlock = append spellId to `SaveSystem.Data.unlockedSpells` (gate + wheel lock glyphs react automatically); spell ranks can hook `SpellCaster.ActiveSpell` reads; `MeleeStrike.damageMultiplier` + `EnemyBase.OnKilled` still the other hooks.
+
+---
