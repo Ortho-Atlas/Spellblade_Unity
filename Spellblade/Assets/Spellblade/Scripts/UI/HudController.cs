@@ -25,6 +25,8 @@ namespace Spellblade
         private readonly System.Collections.Generic.List<Slot> _slots = new();
         private Image _manaFill;
         private Text _manaText;
+        private Health _playerHealth; // [PHASE2-04]
+        private Image _healthFill;    // [PHASE2-04]
 
         private static Sprite _whiteSprite;
         private static Sprite WhiteSprite
@@ -41,8 +43,9 @@ namespace Spellblade
             }
         }
 
-        /// <summary>Bootstrap entry point — builds the whole HUD hierarchy.</summary>
-        public static HudController Build(SpellCaster caster, ManaPool mana)
+        /// <summary>Bootstrap entry point — builds the whole HUD hierarchy.
+        /// playerHealth is optional so pre-Phase-2 callers keep working. [PHASE2-04]</summary>
+        public static HudController Build(SpellCaster caster, ManaPool mana, Health playerHealth = null)
         {
             var go = new GameObject("Spellblade HUD",
                 typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -58,8 +61,10 @@ namespace Spellblade
             hud._caster = caster;
             hud._mana = mana;
             hud._font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            hud._playerHealth = playerHealth; // [PHASE2-04]
             hud.BuildAbilityBar();
             hud.BuildManaBar();
+            if (playerHealth != null) hud.BuildHealthBar(); // [PHASE2-04]
             return hud;
         }
 
@@ -136,6 +141,23 @@ namespace Spellblade
                                  12, FontStyle.Bold, new Color(0.85f, 0.9f, 1f), TextAnchor.MiddleCenter);
         }
 
+        // [PHASE2-04] Slim HP bar paired with the mana bar (just beneath it — the
+        // slot above is occupied by the ability bar's spell-name labels).
+        private void BuildHealthBar()
+        {
+            var root = MakeRect("Health Bar", transform,
+                anchorMin: new Vector2(0.5f, 0f), anchorMax: new Vector2(0.5f, 0f),
+                pivot: new Vector2(0.5f, 0f), size: new Vector2(420, 10), anchoredPos: new Vector2(0, 14));
+
+            MakeImage("BG", root, Vector2.zero, new Vector2(420, 10), new Color(0.04f, 0.04f, 0.08f, 0.95f));
+
+            _healthFill = MakeImage("Fill", root, Vector2.zero, new Vector2(414, 6),
+                                    new Color(0.78f, 0.16f, 0.18f)); // arterial crimson
+            _healthFill.sprite = WhiteSprite;
+            _healthFill.type = Image.Type.Filled;
+            _healthFill.fillMethod = Image.FillMethod.Horizontal;
+        }
+
         // -- Live updates --------------------------------------------------------
 
         private void Update()
@@ -159,6 +181,9 @@ namespace Spellblade
                 _manaFill.fillAmount = _mana.Current / _mana.Max;
                 _manaText.text = $"{Mathf.FloorToInt(_mana.Current)} / {Mathf.FloorToInt(_mana.Max)}";
             }
+
+            if (_playerHealth != null && _healthFill != null) // [PHASE2-04]
+                _healthFill.fillAmount = _playerHealth.Current / Mathf.Max(1f, _playerHealth.maxHealth);
         }
 
         // -- Tiny UI factory helpers ----------------------------------------------

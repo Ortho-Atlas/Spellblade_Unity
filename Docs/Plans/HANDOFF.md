@@ -45,3 +45,35 @@
 4. `SampleScene.unity` left in place and pushed after WorldMap/Arena in Build Settings; the old playground scene at `Assets/Spellblade/Spellblade Playground.unity` keeps working as playground mode.
 
 ---
+
+## Plan 04 — Enemies + Arena Objectives · `phase2/enemies` · 2026-07-12
+
+**No contract stubs were needed** — Plan 03 had already merged to main, so this branch codes against the real `GameSession`/`ArenaNodeDef`/`SaveSystem`.
+
+**Shipped — enemies (`Scripts/Enemies/`):**
+- `EnemyBase` — NavMeshAgent + Health + ElementalAffinity + Spawning→Chase/Attack→Dead flow, materialize-in, element-tinted eyes/accents, dissolve death (shrink+sink+burst) firing `OnKilled`. Aggro model: waves spawn hot (range 999), traversal packs use range 11 so running past works; any damage aggros permanently.
+- `GruntChaser` "Husk" — 55 HP, speed 3.8, 1.2m/10dmg/1.2s swipe with a 0.35s visible windup lean (the dodge window).
+- `GruntCaster` "Cultist" — 40 HP, holds 9–12m, retreats inside 7m, strafes every 2.5–4s, fires an element bolt every 2.5s after a 0.5s orb-swell windup (speed 14, dmg 12, r 0.3). Bolts use the new `ProjectileTargets.PlayerOnly` filter.
+- `MiniBoss` "Court Warden" — 2.2× scale, 320 HP, speed 3.2, region-attuned. SLAM: 1s `TelegraphRing` (pulsing ground disc, urgency ramp) then 25 dmg within 2.5m, 5s cd. SUMMON: 2 Husks, 6s gate, max 4 alive summons. Heavy swipe between abilities.
+
+**Shipped — objectives (`Scripts/Arena/`):**
+- `ObjectiveDirector` — added by the bootstrap when `CurrentNode != null`; `ArenaFlow.TryFindObjectiveDirector` now finds+configures it (the Plan-03 stub body was replaced exactly as designed, so the debug V key is gone in arena mode; Esc-abandon remains). Owns telegraphed spawning (flash → 0.6s → materialize, NavMesh-snapped), objective HUD line, splashes, victory banner (1.5s) → `ReportArenaResult(true)`, and `Defeat()` for PlayerLife.
+- `WaveSurvivalObjective` — T1: 3H / 2H+2C / 3H+3C; T2+: 4 waves (3H / 2H+2C / 3H+2C / 4H+3C) at +30% HP; "WAVE N" splash + 3s breathers; perimeter-ring spawn points; attunements cycle all four elements.
+- `WavesThenBossObjective` — tier waves → "THE COURT WARDEN" splash → Warden (region element); 2 Cultist adds at 50% boss HP; victory on Warden death.
+- `TraversalObjective` + `TraversalArena` — 3-chamber 22×60 corridor (offset door gaps, pillar cover, rubble, ground mist), packs 2H+1C (ch1) and 3H+2C (ch2) at aggro 11, spinning gold shard-ring portal in chamber 3; touch radius 1.6 → victory.
+
+**Shipped — player mortality:** `Health(120)` + `PlayerLife` + a capsule hitbox on the player (it had NO collider before — enemy projectiles would have flown straight through; this was a real gap, not in the plan text). Vignette pulses blood-red on hits (drives the bootstrap's URP volume), HUD gets a slim crimson HP bar, arena death = 1.2s fade → defeat (no clear), playground death = respawn at spawn point.
+
+**Touched:** `Projectile` (optional `ProjectileTargets` param, default preserves SpellCaster behavior — enemy bolts ghost through enemies/dummies, stop on player/walls), `HudController` (optional third `Build` param + HP bar), `SpellbladeBootstrap` (6 small `[PHASE2-04]`-marked insertions), `ArenaFlow` (stub body filled). `SpellCaster` untouched.
+
+**Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings. No Play-mode run (headless session); checklist code-verified, needs Ryan's in-editor pass for feel (windup readability, telegraph timing, kite distances).
+
+**Deviations / interpretations:**
+1. `ShadowBiomeArt.Build` NOT used in the corridor — its dressing is hand-placed for the 30×30 square and would intersect corridor walls. Same palette/mood recreated with the wall kit + rubble + `GroundMist`.
+2. Plan's T1 wave-3 "3+2+1" read as 3 Husks + 3 Cultists (3H+2C+1C). Adjust in `WaveSurvivalObjective.BuildWaves` if the intent was different.
+3. HP bar sits just BELOW the mana bar, not above — the slot above is occupied by the ability bar's spell-name labels; same paired-bar read.
+4. Warden also has a basic swipe (12 dmg) between abilities so it isn't a pushover at melee range — plan implied it as a "scaled-up chaser."
+
+**For Plan 02 (wheel):** nothing here claims RMB or scroll. **For Plan 05:** `MeleeStrike.damageMultiplier` static hook still waiting; enemies don't yet award essence/shards — that's your earning hook, `EnemyBase.OnKilled` is the place.
+
+---

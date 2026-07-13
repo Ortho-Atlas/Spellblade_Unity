@@ -2,6 +2,11 @@ using UnityEngine;
 
 namespace Spellblade
 {
+    /// <summary>Who a projectile is allowed to hurt. Everyone = Phase 1 behavior
+    /// (player shots — hit any Health except the caster). PlayerOnly = enemy
+    /// shots — pass straight through enemies and dummies, hurt only the player.</summary>
+    public enum ProjectileTargets { Everyone, PlayerOnly } // [PHASE2-04]
+
     /// <summary>
     /// A traveling skillshot. Moves in a straight line at chest height, sweeps
     /// for hits with a sphere cast (no tunneling at high speeds), applies the
@@ -14,8 +19,10 @@ namespace Spellblade
         private Transform _owner;
         private Vector3 _direction;
         private float _traveled;
+        private ProjectileTargets _targets; // [PHASE2-04]
 
-        public static Projectile Spawn(SpellSO spell, Vector3 origin, Vector3 direction, Transform owner)
+        public static Projectile Spawn(SpellSO spell, Vector3 origin, Vector3 direction, Transform owner,
+                                       ProjectileTargets targets = ProjectileTargets.Everyone) // [PHASE2-04] default = untouched SpellCaster behavior
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             go.name = $"Projectile ({spell.displayName})";
@@ -47,6 +54,7 @@ namespace Spellblade
             p._spell = spell;
             p._owner = owner;
             p._direction = direction.normalized;
+            p._targets = targets; // [PHASE2-04]
             return p;
         }
 
@@ -65,6 +73,13 @@ namespace Spellblade
                 if (_owner != null && hit.transform.root == _owner.root) continue; // never hit the caster
 
                 var health = hit.collider.GetComponentInParent<Health>();
+
+                // [PHASE2-04] Enemy shots ghost through anything that isn't the player
+                // (other enemies, dummies) — they only stop on the player or walls.
+                if (_targets == ProjectileTargets.PlayerOnly && health != null &&
+                    hit.collider.GetComponentInParent<PlayerLife>() == null)
+                    continue;
+
                 if (health != null && !health.IsDead)
                 {
                     // Counter-wheel: scale damage by the target's elemental attunement.

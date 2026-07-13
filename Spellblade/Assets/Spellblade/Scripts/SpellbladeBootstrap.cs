@@ -50,14 +50,18 @@ namespace Spellblade
 
         private void Start()
         {
+            bool traversal = GameSession.CurrentNode != null &&
+                             GameSession.CurrentNode.objective == ObjectiveType.Traversal; // [PHASE2-04]
+
             SetMood();
-            BuildArena();
+            if (traversal) TraversalArena.Build(wallHeight); else BuildArena(); // [PHASE2-04] corridor layout for Traversal nodes
             BakeNavMesh();      // bake BEFORE dummies so they carve holes instead of becoming floor
             SpawnPlayer();
-            SpawnDummies();
+            if (GameSession.CurrentNode == null) SpawnDummies(); // [PHASE2-04] arena enemies come from the ObjectiveDirector
             SetupCamera();
             SetupPostProcessing();
             SetupHud();
+            if (GameSession.CurrentNode != null) gameObject.AddComponent<ObjectiveDirector>(); // [PHASE2-04] ArenaFlow configures it below
             ArenaFlow.Begin(this); // [PHASE2-03] arena mode: node flow + Esc abandon; no-op in playground (CurrentNode == null)
 
             Debug.Log("[Spellblade] Playground assembled. WASD move · Space melee · QWER disciplines · LMB cast."); // [PHASE2-01]
@@ -156,7 +160,9 @@ namespace Spellblade
         private void SpawnPlayer()
         {
             var player = new GameObject("Player");
-            player.transform.position = new Vector3(0f, 0f, -6f);
+            player.transform.position = GameSession.CurrentNode?.objective == ObjectiveType.Traversal
+                ? new Vector3(0f, 0f, -26f)   // [PHASE2-04] traversal: enter at chamber 1's south end
+                : new Vector3(0f, 0f, -6f);
             _player = player.transform;
 
             var agent = player.AddComponent<NavMeshAgent>();
@@ -175,6 +181,16 @@ namespace Spellblade
 
             var caster = player.AddComponent<SpellCaster>();
             caster.SetDisciplines(CreateDisciplines());
+
+            var health = player.AddComponent<Health>(); // [PHASE2-04] the player is mortal now
+            health.maxHealth = 120f;
+            health.Revive(); // Awake ran before maxHealth was set — sync Current
+            player.AddComponent<PlayerLife>();          // [PHASE2-04] vignette pulse + death flow
+
+            var hitbox = player.AddComponent<CapsuleCollider>(); // [PHASE2-04] enemy projectiles sweep physics — they need something to hit
+            hitbox.center = new Vector3(0f, 1f, 0f);
+            hitbox.height = 2f;
+            hitbox.radius = 0.4f;
 
             AttachVisual(player, controller);
 
@@ -325,7 +341,7 @@ namespace Spellblade
         {
             var caster = _player.GetComponent<SpellCaster>();
             var mana = _player.GetComponent<ManaPool>();
-            HudController.Build(caster, mana);
+            HudController.Build(caster, mana, _player.GetComponent<Health>()); // [PHASE2-04] + HP bar
         }
 
         // ---------------------------------------------------------------- Spells

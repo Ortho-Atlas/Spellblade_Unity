@@ -20,14 +20,15 @@ namespace Spellblade
             host.gameObject.AddComponent<ArenaFlowRunner>();
         }
 
-        /// <summary>Plan 04 fills this in with a direct call:
-        ///   var director = Object.FindAnyObjectByType&lt;ObjectiveDirector&gt;();
-        ///   if (director == null) return false;
-        ///   director.Configure(node); return true;
-        /// Until then the debug fallback below keeps the map loop playable.</summary>
+        /// <summary>Hands the node to the objective system. Returns false only if
+        /// no director exists (then the debug V-victory fallback stays on).</summary>
         public static bool TryFindObjectiveDirector(ArenaNodeDef node)
         {
-            return false; // [PHASE2-03] stub — Plan 04 owns the body
+            // [PHASE2-04] Plan 04 filled in the Plan-03 stub, as designed.
+            var director = Object.FindAnyObjectByType<ObjectiveDirector>();
+            if (director == null) return false;
+            director.Configure(node);
+            return true;
         }
     }
 
