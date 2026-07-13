@@ -47,10 +47,20 @@ namespace Spellblade
             outer.GetComponent<Renderer>().material =
                 SpellbladeFx.MakeLit(new Color(0.10f, 0.16f, 0.07f), 0.3f); // darker under-canopy grass
 
-            // The real arena boundary: everything out here bakes as NotWalkable.
-            var modifier = outer.AddComponent<NavMeshModifier>();
-            modifier.overrideArea = true;
-            modifier.area = 1; // Not Walkable
+            // FULLY invisible to the bake. (v2 used a NotWalkable override, but
+            // 3cm under the meadow the voxelizer merged the two planes and poisoned
+            // real floor — the player spawned onto a canopy island. The meadow
+            // plane's own EDGE is the boundary now: agents can't leave the mesh.)
+            MarkIgnoredByNavMesh(outer);
+        }
+
+        /// <summary>Dressing must never shape the NavMesh — the bake reads render
+        /// meshes, so canopies/grass/flowers would otherwise grow walkable islands
+        /// or punch holes in the floor. Applies to this object and its children.</summary>
+        private static void MarkIgnoredByNavMesh(GameObject go)
+        {
+            var modifier = go.AddComponent<NavMeshModifier>();
+            modifier.ignoreFromBuild = true;
         }
 
         // -- The forest wall: two staggered rings of procedural trees ---------------
@@ -59,8 +69,8 @@ namespace Spellblade
         {
             var ring = new (int count, float radius, float scaleMin, float scaleMax)[]
             {
-                (18, half + 1.8f, 0.9f, 1.15f),  // inner row — the edge of the clearing
-                (14, half + 5.2f, 1.1f, 1.45f),  // outer row — bigger, fading into fog
+                (12, half + 2.0f, 0.9f, 1.15f),  // inner row — the edge of the clearing (thinned per Ryan)
+                (9, half + 5.5f, 1.1f, 1.45f),   // outer row — bigger, fading into fog
             };
             foreach (var (count, radius, scaleMin, scaleMax) in ring)
             {
@@ -79,12 +89,11 @@ namespace Spellblade
 
         private static void BuildFieldTrees(Transform root)
         {
-            var spots = new Vector3[]
+            var spots = new Vector3[] // thinned per Ryan — the meadow stays open
             {
                 new(-8.5f, 0f, 7.5f),
                 new(9f, 0f, 5f),
-                new(-7f, 0f, -8f),
-                new(8f, 0f, -9.5f),
+                new(7.5f, 0f, -9.5f),
             };
             foreach (var pos in spots)
                 BuildTree(root, pos, Random.Range(1.05f, 1.3f));
@@ -119,6 +128,7 @@ namespace Spellblade
                 var branch = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 branch.name = "Branch";
                 Object.DestroyImmediate(branch.GetComponent<Collider>());
+                MarkIgnoredByNavMesh(branch); // never bakes
                 branch.transform.SetParent(tree, false);
                 float yaw = Random.Range(0f, 360f);
                 branch.transform.localPosition = Quaternion.Euler(0f, yaw, 0f) *
@@ -135,6 +145,7 @@ namespace Spellblade
                 var lobe = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 lobe.name = "Canopy";
                 Object.DestroyImmediate(lobe.GetComponent<Collider>());
+                MarkIgnoredByNavMesh(lobe); // THE tree-top bug: canopy tops baked as walkable islands
                 lobe.transform.SetParent(tree, false);
 
                 float size = (i == 0 ? Random.Range(2.9f, 3.5f) : Random.Range(1.9f, 2.5f)) * scale;
@@ -163,6 +174,7 @@ namespace Spellblade
 
                 // A tuft: two thin crossed blades, slight lean.
                 var tuft = new GameObject("Grass Tuft").transform;
+                MarkIgnoredByNavMesh(tuft.gameObject); // covers both blades
                 tuft.SetParent(root);
                 tuft.position = pos;
                 tuft.rotation = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
@@ -197,6 +209,7 @@ namespace Spellblade
                 var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 stem.name = "Flower Stem";
                 Object.DestroyImmediate(stem.GetComponent<Collider>());
+                MarkIgnoredByNavMesh(stem);
                 stem.transform.SetParent(root);
                 stem.transform.position = pos + Vector3.up * (h / 2f);
                 stem.transform.localScale = new Vector3(0.025f, h / 2f, 0.025f);
@@ -205,6 +218,7 @@ namespace Spellblade
                 var head = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 head.name = "Flower";
                 Object.DestroyImmediate(head.GetComponent<Collider>());
+                MarkIgnoredByNavMesh(head);
                 head.transform.SetParent(root);
                 head.transform.position = pos + Vector3.up * (h + 0.04f);
                 head.transform.localScale = Vector3.one * Random.Range(0.09f, 0.15f);
@@ -254,6 +268,7 @@ namespace Spellblade
                     var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                     stem.name = "Mushroom Stem";
                     Object.DestroyImmediate(stem.GetComponent<Collider>());
+                    MarkIgnoredByNavMesh(stem);
                     stem.transform.SetParent(root);
                     stem.transform.position = basePos + offset + Vector3.up * (s * 0.8f);
                     stem.transform.localScale = new Vector3(s * 0.35f, s * 0.8f, s * 0.35f);
@@ -262,6 +277,7 @@ namespace Spellblade
                     var cap = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                     cap.name = "Mushroom Cap";
                     Object.DestroyImmediate(cap.GetComponent<Collider>());
+                    MarkIgnoredByNavMesh(cap);
                     cap.transform.SetParent(root);
                     cap.transform.position = basePos + offset + Vector3.up * (s * 1.7f);
                     cap.transform.localScale = new Vector3(s * 1.4f, s * 0.8f, s * 1.4f);
