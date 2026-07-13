@@ -55,7 +55,8 @@ namespace Spellblade
         // -- Unlock queries (map UI + tooltips read these) ----------------------
 
         public static bool IsRegionUnlocked(string regionId) =>
-            SaveSystem.Data.unlockedRegions.Contains(regionId);
+            SaveSystem.Data.unlockedRegions.Contains(regionId) ||
+            (RegionDefs.Find(regionId)?.unlockedFromStart ?? false); // [BIOME] dev-preview regions
 
         public static bool IsNodeCleared(string nodeId) =>
             SaveSystem.Data.clearedNodes.Contains(nodeId);

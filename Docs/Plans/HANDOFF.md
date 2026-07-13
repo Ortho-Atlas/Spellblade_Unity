@@ -159,4 +159,13 @@
 
 **Verified:** Unity 6000.5.3f1 batchmode — 0 errors, 0 warnings; Verdant preview scene generated headlessly and committed.
 
+**Update (same session, Ryan's follow-up):** preview-only wasn't enough — Ryan wants the Deep ON the map. Shipped in the same branch:
+- 4 Verdant nodes: `verdant_01` Mossgrave Hollow (WaveSurvival T1) · `verdant_02` The Rootway (Traversal T1) · `verdant_03` Elderbough Ring (WaveSurvival T2) · `verdant_boss` Heart of the Deep (WavesThenBoss T3). Standard boss gate (clear 3).
+- New `RegionDef.unlockedFromStart` flag (checked by `GameSession.IsRegionUnlocked`) — Verdant is open on every save with NO migration; re-gate later by flipping the flag and setting `unlockedBy = {"shadow"}`.
+- `TraversalArena.Build` now takes the `BiomeStyle` — the corridor wears its region's palette + ambient particles (new `BiomeStyle.buildAmbientParticles`: mist for Shadow, spores for Verdant). The Rootway is the first non-Shadow corridor.
+- Map: green-gold spore flourish over the unlocked Deep; nodes/labels appear automatically (generic region rendering).
+- Gear parity: `staff_crystal_verdant` (boss feat) + `robe_tint_verdant` (clear all 4) in the catalog, granted by the director, rendered in biome green (no Earth element exists — counter-wheel untouched; the Verdant Warden is Umbra-attuned via the `ElementFor` fallback until the lore pass).
+
+**Verified:** batchmode compile after the map wiring — 0 errors, 0 warnings.
+
 ---

@@ -121,6 +121,7 @@ namespace Spellblade
             {
                 if (_node.regionId == "shadow") { TryUnlock("hat_umbral_court"); TryUnlock("staff_crystal_shadow"); }
                 if (_node.regionId == "frost") { TryUnlock("rimeholt_crown"); TryUnlock("staff_crystal_frost"); }
+                if (_node.regionId == "verdant") TryUnlock("staff_crystal_verdant"); // [BIOME]
                 if (!PlayerDiedThisArena) TryUnlock("duelists_plume");
             }
 

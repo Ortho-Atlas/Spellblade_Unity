@@ -233,8 +233,9 @@ namespace Spellblade
         }
 
         // -- Spore motes: the Verdant answer to the Shadow ground mist ------------------
+        // Public: the traversal corridor calls this via BiomeStyle.buildAmbientParticles.
 
-        private static void SporeMotes(float areaSize)
+        public static void SporeMotes(float areaSize)
         {
             var go = new GameObject("Ambient Spore Motes");
             var ps = go.AddComponent<ParticleSystem>();

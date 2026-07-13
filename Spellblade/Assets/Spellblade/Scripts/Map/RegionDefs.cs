@@ -15,6 +15,7 @@ namespace Spellblade
         public Color elementTint;
         public Vector2 mapPosition;               // normalized 0-1 across the map
         public List<string> unlockedBy = new();   // clearing THESE regions' bosses unlocks this one
+        public bool unlockedFromStart;            // [BIOME] dev-preview override — no save migration needed, re-gate by flipping
         public string workingStatus;              // "playable" / "locked" — presentation note only
         public List<NodePlacement> nodes = new();
     }
@@ -128,7 +129,15 @@ namespace Spellblade
                 displayName = "The Verdant Deep",
                 elementTint = new Color(0.30f, 0.80f, 0.35f),
                 mapPosition = new Vector2(0.52f, 0.55f),
-                workingStatus = "locked",
+                unlockedFromStart = true, // [BIOME] Ryan's call 2026-07-12: open for exploration; re-gate later via unlockedBy = {"shadow"}
+                workingStatus = "playable-preview",
+                nodes =
+                {
+                    new NodePlacement(Node("verdant_01", "Mossgrave Hollow", "verdant", ObjectiveType.WaveSurvival, 1), 0.46f, 0.50f),
+                    new NodePlacement(Node("verdant_02", "The Rootway", "verdant", ObjectiveType.Traversal, 1), 0.55f, 0.48f),
+                    new NodePlacement(Node("verdant_03", "Elderbough Ring", "verdant", ObjectiveType.WaveSurvival, 2), 0.58f, 0.60f),
+                    new NodePlacement(Node("verdant_boss", "Heart of the Deep", "verdant", ObjectiveType.WavesThenBoss, 3, boss: true), 0.49f, 0.62f),
+                }
             };
 
             var sunken = new RegionDef

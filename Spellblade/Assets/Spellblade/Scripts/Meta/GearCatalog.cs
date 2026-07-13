@@ -35,6 +35,10 @@ namespace Spellblade
                           category = "robe", featHint = "Clear every arena in the Shadow Reach" },
             new GearDef { id = "robe_tint_frost", displayName = "Rimeholt Robe Trim",
                           category = "robe", featHint = "Clear every arena in the Rimeholt" },
+            new GearDef { id = "staff_crystal_verdant", displayName = "Verdant Staff Crystal",
+                          category = "crystal", featHint = "Clear the Verdant Deep boss" },
+            new GearDef { id = "robe_tint_verdant", displayName = "Verdant Robe Trim",
+                          category = "robe", featHint = "Clear every arena in the Verdant Deep" },
         };
 
         public static GearDef Find(string id) => All.Find(g => g.id == id);

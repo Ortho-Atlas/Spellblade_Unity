@@ -35,6 +35,10 @@ namespace Spellblade
         /// <summary>Region-specific set dressing, called before the NavMesh bake.</summary>
         public System.Action<float> buildDressing;
 
+        /// <summary>Ambient particle pass for arenas that lay their own geometry
+        /// (the traversal corridor): mist for Shadow, spores for Verdant.</summary>
+        public System.Action<float> buildAmbientParticles;
+
         public static BiomeStyle For(string regionId) => regionId switch
         {
             "verdant" => Verdant,
@@ -63,6 +67,7 @@ namespace Spellblade
             vignetteColor = new Color(0.01f, 0.01f, 0.03f),
 
             buildDressing = ShadowBiomeArt.Build,
+            buildAmbientParticles = SpellbladeParticles.GroundMist,
         };
 
         /// <summary>The Verdant Deep — earth magic. Ancient forest floor swallowing
@@ -89,6 +94,7 @@ namespace Spellblade
             vignetteColor = new Color(0.02f, 0.035f, 0.015f),
 
             buildDressing = VerdantBiomeArt.Build,
+            buildAmbientParticles = VerdantBiomeArt.SporeMotes,
         };
     }
 }

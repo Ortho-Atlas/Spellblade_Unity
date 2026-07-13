@@ -98,11 +98,17 @@ namespace Spellblade
                     case "staff_crystal_frost" when staff != null:
                         AddStaffCrystals(staff.gameObject, ElementMath.ColorOf(ElementType.Frost));
                         break;
+                    case "staff_crystal_verdant" when staff != null: // [BIOME] no Earth element yet — biome green
+                        AddStaffCrystals(staff.gameObject, new Color(0.45f, 0.80f, 0.30f));
+                        break;
                     case "robe_tint_shadow" when robe != null:
                         AddRobeTrim(robe.gameObject, ElementMath.ColorOf(ElementType.Umbra));
                         break;
                     case "robe_tint_frost" when robe != null:
                         AddRobeTrim(robe.gameObject, ElementMath.ColorOf(ElementType.Frost));
+                        break;
+                    case "robe_tint_verdant" when robe != null: // [BIOME]
+                        AddRobeTrim(robe.gameObject, new Color(0.45f, 0.80f, 0.30f));
                         break;
                 }
             }

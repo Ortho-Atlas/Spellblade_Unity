@@ -59,7 +59,7 @@ namespace Spellblade
                 ? GameSession.CurrentNode.regionId : playgroundBiome);
 
             SetMood();
-            if (traversal) TraversalArena.Build(wallHeight); else BuildArena(); // [PHASE2-04] corridor layout for Traversal nodes
+            if (traversal) TraversalArena.Build(wallHeight, _style); else BuildArena(); // [PHASE2-04] corridor layout, [BIOME] region palette
             BakeNavMesh();      // bake BEFORE dummies so they carve holes instead of becoming floor
             SpawnPlayer();
             if (GameSession.CurrentNode == null) SpawnDummies(); // [PHASE2-04] arena enemies come from the ObjectiveDirector

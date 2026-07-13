@@ -18,13 +18,13 @@ namespace Spellblade
         public const float Width = 22f;    // x span
         public const float Length = 60f;   // z span, -30..+30 — three 20-deep chambers
 
-        public static void Build(float wallHeight)
+        public static void Build(float wallHeight, BiomeStyle style) // [BIOME] corridor wears its region's palette
         {
             var arena = new GameObject("Arena (Traversal)").transform;
 
-            var groundMat = SpellbladeFx.MakeLit(new Color(0.085f, 0.125f, 0.09f), 0.55f);
-            var wallMat = SpellbladeFx.MakeLit(new Color(0.115f, 0.115f, 0.135f), 0.2f);
-            var pillarMat = SpellbladeFx.MakeLit(new Color(0.15f, 0.15f, 0.17f), 0.25f);
+            var groundMat = SpellbladeFx.MakeLit(style.groundColor, style.groundSmoothness);
+            var wallMat = SpellbladeFx.MakeLit(style.wallColor, 0.2f);
+            var pillarMat = SpellbladeFx.MakeLit(style.pillarColor, 0.25f);
 
             // Floor: one long plane (Unity plane is 10×10 at scale 1).
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
@@ -58,7 +58,8 @@ namespace Spellblade
             foreach (var (pos, scale) in dressing)
                 Wall(arena, pillarMat, pos, scale, "Pillar");
 
-            var rubbleMat = SpellbladeFx.MakeLit(new Color(0.13f, 0.13f, 0.15f), 0.2f);
+            var rubbleMat = SpellbladeFx.MakeLit(
+                Color.Lerp(style.pillarColor, style.groundColor, 0.4f), 0.2f); // [BIOME]
             var rubble = new (Vector3 pos, float size, float yaw)[]
             {
                 (new Vector3(3f, 0.22f, -20f), 0.55f, 25f),
@@ -78,8 +79,8 @@ namespace Spellblade
                 rock.GetComponent<Renderer>().material = rubbleMat;
             }
 
-            // The Scotland gloom travels with us.
-            SpellbladeParticles.GroundMist(Length);
+            // [BIOME] Mist in the Reach, spores in the Deep.
+            style.buildAmbientParticles(Length);
         }
 
         private static void Divider(Transform parent, Material mat, float wallHeight, float z, float doorCenterX)

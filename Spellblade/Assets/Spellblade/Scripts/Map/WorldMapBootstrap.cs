@@ -191,6 +191,13 @@ namespace Spellblade
                     new Color(0.55f, 0.95f, 1.00f, 0.55f), sizeMin: 0.04f, sizeMax: 0.10f,
                     rate: 7f, life: 1.4f, speed: 0.05f, box: new Vector3(2.4f, 1.7f, 0.1f));
             }
+            else if (region.id == "verdant" && unlocked)
+            {
+                // [BIOME] Green-gold spore motes drifting over the Deep.
+                RegionParticles(region.id, center + Vector3.back * 2f,
+                    new Color(0.65f, 0.85f, 0.35f, 0.4f), sizeMin: 0.03f, sizeMax: 0.09f,
+                    rate: 5f, life: 4f, speed: 0.08f, box: new Vector3(2.5f, 1.8f, 0.1f));
+            }
             else if (!unlocked)
             {
                 RegionParticles(region.id, center + Vector3.back * 1f, // z≈7
