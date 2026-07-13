@@ -59,7 +59,7 @@ namespace Spellblade
             SetupPostProcessing();
             SetupHud();
 
-            Debug.Log("[Spellblade] Phase 1 playground assembled. RMB move · QWER disciplines · LMB cast.");
+            Debug.Log("[Spellblade] Playground assembled. WASD move · Space melee · QWER disciplines · LMB cast."); // [PHASE2-01]
         }
 
         // ---------------------------------------------------------------- Mood
@@ -166,7 +166,8 @@ namespace Spellblade
             agent.radius = 0.4f;
             agent.height = 2f;
 
-            var controller = player.AddComponent<MobaController>();
+            var controller = player.AddComponent<WasdController>(); // [PHASE2-01] WASD replaces click-to-move
+            player.AddComponent<MeleeStrike>();                     // [PHASE2-01] Space melee — the "blade"
             var mana = player.AddComponent<ManaPool>();
             mana.maxMana = maxMana;
             mana.regenPerSecond = manaRegenPerSecond;
@@ -181,7 +182,7 @@ namespace Spellblade
         }
 
         /// <summary>Starter Assets rig if available (animator wired), else a capsule.</summary>
-        private void AttachVisual(GameObject player, MobaController controller)
+        private void AttachVisual(GameObject player, WasdController controller) // [PHASE2-01]
         {
 #if UNITY_EDITOR
             // Auto-find the rig so no manual Inspector wiring is ever needed.

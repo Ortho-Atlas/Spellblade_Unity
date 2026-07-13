@@ -21,7 +21,7 @@ namespace Spellblade
         private readonly Dictionary<SpellSO, float> _readyAt = new(); // spell → Time.time it comes off cooldown
 
         private ManaPool _mana;
-        private MobaController _controller;
+        private WasdController _controller; // [PHASE2-01] type swap only — MobaController deleted
 
         public IReadOnlyList<Discipline> Disciplines => _disciplines;
         public int ActiveIndex { get; private set; }
@@ -30,7 +30,7 @@ namespace Spellblade
         private void Awake()
         {
             _mana = GetComponent<ManaPool>();
-            _controller = GetComponent<MobaController>();
+            _controller = GetComponent<WasdController>(); // [PHASE2-01] type swap only
         }
 
         /// <summary>Called by the bootstrap with the four generated disciplines.</summary>
